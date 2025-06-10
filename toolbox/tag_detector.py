@@ -5,11 +5,14 @@ import os
 import matplotlib.pyplot as plt
 
 if platform.system() == 'Windows':
+    import pupil_apriltags
     from pupil_apriltags import Detector as ATDetector
     # Set DLL path for Windows
-    os.add_dll_directory("C:/Users/yzeng/AppData/Local/anaconda3/envs/apriltag_env/lib/site-packages/pupil_apriltags.libs")
-    # you need to adjust the path above to your actual environment
-    # check: https://stackoverflow.com/questions/67919822/python-pupil-apriltags-problem-with-dll-path-could-not-find-module
+    package_dir = os.path.dirname(pupil_apriltags.__file__)
+    parent_dir = os.path.dirname(package_dir)
+    dll_dir = os.path.join(parent_dir, "pupil_apriltags.libs")
+    os.add_dll_directory(dll_dir)
+
 else:
     from dt_apriltags import Detector as ATDetector
     # ideally it should stay same libary, but pupil_apriltags is not available for Ubuntu 20.04 for its native numpy version. to prevent break dependency,
