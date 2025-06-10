@@ -27,7 +27,7 @@ class AprilTagDetectorNode:
             [0, -0.965925826, -0.258819045,  0.0742],
             [0.0, 0.0, 0.0, 1.0]
         ])
-        self.detector = AprilTagWrapper(debug=self.debug, use_pose=self.use_pose, tag_size=self.tag_size)
+        self.detector = AprilTagWrapper(debug=self.debug, tag_size=self.tag_size)
         rospy.Subscriber("perception/near_stop_line", Bool, self.stop_line_cb, queue_size=1)
 
         self.near_stop_line = False
