@@ -28,7 +28,6 @@ class LaneDetectorNode:
         self.center_pub     = rospy.Publisher("perception/lane_centers", Int32MultiArray, queue_size=1)
         self.near_stop_pub  = rospy.Publisher("perception/near_stop_line", Bool, queue_size=1)
         self.near_car_pub   = rospy.Publisher("perception/near_car", Bool, queue_size=1)
-        self.stop_pub       = rospy.Publisher("perception/stop_detected", Bool, queue_size=1)
         
         rospy.Subscriber("robot_cam/image_raw", Image, self.image_callback, queue_size=1)
         self.timer = rospy.Timer(rospy.Duration(0.2), self.timer_callback)
