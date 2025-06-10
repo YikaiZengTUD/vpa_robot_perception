@@ -41,7 +41,7 @@ class LaneDetectorNode:
             rospy.logerr("Failed to convert image: %s", str(e))
             return
 
-        if self.debug:
+        if self.publish_result:
             result_frame,_,_,self.lane_center = self.detector.center_detect(cv_image)
         else:
             self.lane_center = self.detector.center_detect(cv_image)
