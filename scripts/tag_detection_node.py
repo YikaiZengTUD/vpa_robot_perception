@@ -31,14 +31,18 @@ class AprilTagDetectorNode:
         rospy.Subscriber("perception/near_stop_line", Bool, self.stop_line_cb, queue_size=1)
 
         self.near_stop_line = False
+        self.near_stop_line_last = False
         self.image_msg = None
         rospy.loginfo("[%s] AprilTagDetectorNode started. Debug=%s Pose=%s", self.robot_name, self.debug, self.use_pose)
 
 
     def stop_line_cb(self, msg):
+        self.near_stop_line_last = self.near_stop_line
         self.near_stop_line = msg.data
         
-        if self.near_stop_line:
+        if self.near_stop_line and not self.near_stop_line_last:
+            # When we are near the stop line, we want to process the image
+            # but not repeat the processing if we are still near the stop line
             rospy.loginfo("[%s] Near stop line: %s", self.robot_name, self.near_stop_line)
             try:
                 image_msg = rospy.wait_for_message("robot_cam/image_raw", Image, timeout=2.0)
