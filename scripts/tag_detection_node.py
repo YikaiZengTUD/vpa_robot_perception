@@ -85,6 +85,11 @@ class AprilTagDetectorNode:
             trans.transform.rotation.w = quat[3]
 
             self.tf_broadcaster.sendTransform(trans)
+
+            if self.debug:
+                rospy.loginfo("[%s] Detected tag %d at position: (%.2f, %.2f, %.2f)", 
+                              self.robot_name, det['id'], 
+                              T_base_tag[0, 3], T_base_tag[1, 3], T_base_tag[2, 3])
     
 
 if __name__ == "__main__":
