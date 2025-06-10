@@ -116,10 +116,14 @@ class LaneDetector:
                     left = clusters[0][0]
                     right = clusters[-1][-1]
                     center = (left + right) // 2
-
-                cv2.circle(frame, (center, y), 4, (0, 255, 0), -1)
-            cv2.line(frame, (0, y), (width, y), (255, 0, 0), 1)
+                else:
+                    center = None
+            else:
+                center = None
+            
         if self.debug:
+            cv2.circle(frame, (center, y), 4, (0, 255, 0), -1)
+            cv2.line(frame, (0, y), (width, y), (255, 0, 0), 1)
             image_center = width // 2
             cv2.line(frame, (image_center, 0), (image_center, height), (0, 0, 255), 1)
         if self.debug:
