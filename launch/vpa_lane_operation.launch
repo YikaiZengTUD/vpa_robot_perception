@@ -1,0 +1,12 @@
+<launch>
+    <arg name="publish_result" default="false"/>
+    <arg name="debug" default="false"/>
+    <node pkg="vpa_robot_perception" type="lane_detection_node.py" name="lane_detection_node" output="screen" required="true">
+        <param name="publish_result" value="$(arg publish_result)"/>
+        <param name="debug" value="$(arg debug)"/>
+    </node>
+    <node pkg="vpa_robot_perception" type="tag_detection_node.py" name="tag_detection_node" output="screen" required="true">
+        <param name="publish_result" value="$(arg publish_result)"/>
+        <param name="debug" value="$(arg debug)"/>
+    </node>    
+</launch>
