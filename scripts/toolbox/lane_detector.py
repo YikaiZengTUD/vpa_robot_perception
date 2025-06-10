@@ -1,7 +1,6 @@
 import cv2
 import numpy as np
 import os
-import matplotlib.pyplot as plt
 
 class LaneDetector:
     def __init__(self, debug=False, visual_debug=False):
@@ -46,7 +45,7 @@ class LaneDetector:
                     else:
                         return True
 
-        if self.debug:
+        if self.publish_visualization:
             return None, False
         else:
             return False
@@ -65,7 +64,7 @@ class LaneDetector:
         mask_yellow = cv2.inRange(hsv, self.lower_yellow, self.upper_yellow)
         mask_white = cv2.inRange(hsv, self.lower_white, self.upper_white)
         lane_mask = cv2.bitwise_or(mask_yellow, mask_white)
-        if self.debug:
+        if self.publish_visualization:
             mask_red, self.near_stop_line = self.stop_detect(hsv)
             if mask_red is None:
                 mask_red = np.zeros_like(lane_mask)
@@ -120,18 +119,22 @@ class LaneDetector:
                     center = None
             else:
                 center = None
+            centers.append(center)
+            if self.publish_visualization:
+                if center is not None:
+                    center = int(center)
+                    cv2.circle(frame, (center, y), 4, (0, 255, 0), -1)
+                    cv2.line(frame, (0, y), (width, y), (255, 0, 0), 1)
+                    image_center = width // 2
+                    cv2.line(frame, (image_center, 0), (image_center, height), (0, 0, 255), 1)
             
-        if self.debug:
-            cv2.circle(frame, (center, y), 4, (0, 255, 0), -1)
-            cv2.line(frame, (0, y), (width, y), (255, 0, 0), 1)
-            image_center = width // 2
-            cv2.line(frame, (image_center, 0), (image_center, height), (0, 0, 255), 1)
-        if self.debug:
+        if self.publish_visualization:
             return frame,lane_mask, mask_red, centers
         else:
             return centers
 
     def visualize(self, frame, mask, edges):
+        import matplotlib.pyplot as plt
         if not self.debug:
             return
         fig, axs = plt.subplots(1, 3, figsize=(15, 5))
