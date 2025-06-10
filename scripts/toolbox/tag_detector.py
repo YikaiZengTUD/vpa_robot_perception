@@ -2,7 +2,6 @@ import platform
 import cv2
 import numpy as np
 import os
-import matplotlib.pyplot as plt
 
 if platform.system() == 'Windows':
     import pupil_apriltags
@@ -23,6 +22,8 @@ else:
 class AprilTagWrapper:
     def __init__(self, tag_family='tag36h11', debug=False, tag_size=0.06):
         self.debug    = debug
+        if self.debug:
+            self.debug_image = None
         self.detector = ATDetector(families=tag_family)
         self.use_pose = True
         self.tag_size = tag_size
@@ -75,7 +76,7 @@ class AprilTagWrapper:
                 # Draw tag ID
                 cv2.putText(debug_image, str(tag.tag_id), (cx + 5, cy),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
-
+                self.debug_image = debug_image
                 if self.use_pose and tag.pose_t is not None and tag.pose_R is not None:
                     # Draw 3D coordinate axes from pose
                     axis_length = self.tag_size / 2
@@ -102,16 +103,19 @@ class AprilTagWrapper:
                     # axis
                     # Red = X Green = Y Blue = Z
 
-                    if  len(detections) > 0:
-                        plt.figure(figsize=(8, 6))
-                        plt.imshow(cv2.cvtColor(debug_image, cv2.COLOR_BGR2RGB))
-                        plt.title("AprilTag Detections")
-                        plt.axis("off")
-                        plt.tight_layout()
-                        plt.show()
+                    # if  len(detections) > 0:
 
+
+        
         return detections, debug_image if self.debug else None
-    
+    def visualize(self):
+        from matplotlib import pyplot as plt
+        plt.figure(figsize=(8, 6))
+        plt.imshow(cv2.cvtColor(self.debug_image, cv2.COLOR_BGR2RGB))
+        plt.title("AprilTag Detections")
+        plt.axis("off")
+        plt.tight_layout()
+        plt.show()
 # === Debug function for static image testing ===
 def test_on_image(image_path):
     image = cv2.imread(image_path)
@@ -120,6 +124,7 @@ def test_on_image(image_path):
 
     detector = AprilTagWrapper(debug=True)
     detector.detect(image)
+    detector.visualize()
 
 if __name__ == "__main__":
     test_on_image("test/test_img/image06.png")
