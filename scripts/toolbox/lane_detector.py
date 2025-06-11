@@ -98,6 +98,7 @@ class LaneDetector:
             center = None
             scan_y = int(height * y)
             yellow_indices  = np.where(mask_yellow[scan_y, :] > 0)[0]
+            white_indices   = np.where(mask_white[scan_y, :] > 0)[0]
             indices         = np.where(lane_mask[scan_y, :] > 0)[0]
             
             if len(yellow_indices) > 0:
@@ -108,7 +109,17 @@ class LaneDetector:
                     continue
                 left_cluster    = yellow_clusters[0]
                 left_point      = np.mean(left_cluster)
-                right_point     = left_point + self.lane_width_at(y)
+
+                if len(white_indices) > 0:
+                    right_cluster   = self.cluster_indices(white_indices)[-1]
+                    if len(right_cluster) > 10:
+                        right_point     = np.mean(right_cluster)
+                    else:
+                        right_point     = left_point + self.lane_width_at(y)
+
+                else:
+                    right_point     = left_point + self.lane_width_at(y)
+
                 if self.debug:
                     print(f"Yellow clusters at y={y}: {left_point}, Right point: {right_point}")
                 
@@ -188,7 +199,7 @@ class LaneDetector:
 
 
 if __name__ == "__main__":
-    IMAGE_PATH = "test/test_img/image09.png"
+    IMAGE_PATH = "test/test_img/image06.png"
     frame = cv2.imread(IMAGE_PATH)
     if frame is None:
         raise FileNotFoundError(f"Cannot load image: {IMAGE_PATH}")
