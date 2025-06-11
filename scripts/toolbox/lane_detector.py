@@ -54,7 +54,8 @@ class LaneDetector:
         # step 1: remove the upper part of the image
         height, width = frame.shape[:2]
         roi = np.zeros_like(frame)
-        roi[int(height * 0.4):, :] = frame[int(height * 0.4):, :]
+        cutting_height = int(height * 0.5)
+        roi[cutting_height:, :] = frame[cutting_height:, :]
         frame = roi.copy()
         # step 2: convert to HSV and create masks for yellow and white lanes
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -79,7 +80,7 @@ class LaneDetector:
             mask_roi = lane_mask[y:y+h, x:x+w]
             # hollow_score = 1.0 - (np.count_nonzero(mask_roi) / (w * h)) if w * h > 0 else 0
 
-            if area < 200:
+            if area < 280:
                 continue
 
             if self.debug:
@@ -90,46 +91,65 @@ class LaneDetector:
             
             lane_mask[y:y+h, x:x+w] = cv2.bitwise_or(lane_mask[y:y+h, x:x+w], mask_roi)
 
-        centers = []
-        for rel_y in self.scanline_y:
-            y = int(height * rel_y)
-            scan = lane_mask[y, :]
-            indices = np.where(scan > 0)[0]
-            if self.debug:
-                print(f"Scanline at {y}: Found {len(indices)} points")
-                print(f"Indices: {indices}")
-            if len(indices) > 0:
-                clusters = self.cluster_indices(indices)
-                clusters = [c for c in clusters if len(c) >= 5]  # filter out small noise blobs
+        centers = [None, None, None]  # Initialize centers for each scanline
+        # check yellow
 
-                if len(clusters) == 1:
-                    x = int(np.mean(clusters[0]))
-                    lane_half_width = self.lane_width_at(rel_y) // 2
-                    image_center = width // 2
-
-                    if x < image_center:
-                        center = x + lane_half_width
-                    else:
-                        center = x - lane_half_width
-                elif len(clusters) >= 2:
-                    left = clusters[0][0]
-                    right = clusters[-1][-1]
-                    center = (left + right) // 2
-                else:
-                    center = None
+        for i,y in enumerate(self.scanline_y):
+            center = None
+            scan_y = int(height * y)
+            yellow_indices  = np.where(mask_yellow[scan_y, :] > 0)[0]
+            indices         = np.where(lane_mask[scan_y, :] > 0)[0]
+            
+            if len(yellow_indices) > 0:
+                # if we have yellow points, we can solely rely on them
+                yellow_clusters = self.cluster_indices(yellow_indices)
+                yellow_clusters = [c for c in yellow_clusters if len(c) >= 10]
+                if len(yellow_clusters) == 0:
+                    continue
+                left_cluster    = yellow_clusters[0]
+                left_point      = np.mean(left_cluster)
+                right_point     = left_point + self.lane_width_at(y)
+                if self.debug:
+                    print(f"Yellow clusters at y={y}: {left_point}, Right point: {right_point}")
+                
+                center = int((left_point + right_point) / 2)
+                centers[i] = center
             else:
-                center = None
-            centers.append(center)
+                # no yellow points, we need to find the center based on the lane mask
+                if len(indices) > 0:
+                    clusters = self.cluster_indices(indices)
+                    clusters = [c for c in clusters if len(c) >= 10]
+                    if len(clusters) >= 2:
+                        # if we have two clusters, we can find the center
+                        left_cluster    = clusters[0]
+                        right_cluster   = clusters[-1]
+                        left_point      = np.mean(left_cluster)
+                        right_point     = np.mean(right_cluster)
+                        if self.debug:
+                            print(f"Left cluster at y={scan_y}: {left_point}, Right cluster: {right_point}")
+                        center = int((left_point + right_point) / 2)
+                        centers[i] = center
+                    else:
+                        if self.debug:
+                            print(f"Not enough clusters found at y={y}, clusters found: {len(clusters)}")
+                        continue
+                else:
+                    if self.debug:
+                        print(f"No sufficient points detected at y={y}")
+
+            
             if self.publish_visualization:
                 if center is not None:
-                    center = int(center)
-                    cv2.circle(frame, (center, y), 4, (0, 255, 0), -1)
-                    cv2.line(frame, (0, y), (width, y), (255, 0, 0), 1)
+                    cv2.circle(frame, (center, scan_y), 4, (0, 255, 0), -1)
+                    cv2.circle(frame, (int(left_point), scan_y), 4, (255, 255, 0), -1)
+                    cv2.circle(frame, (int(right_point),scan_y), 4, (0, 0, 255), -1)
+                    cv2.line(frame, (0, scan_y), (width, scan_y), (255, 0, 0), 1)
                     image_center = width // 2
-                    cv2.line(frame, (image_center, 0), (image_center, height), (0, 0, 255), 1)
-            
+                    cv2.line(frame, (image_center, 0), (image_center, cutting_height), (100, 100, 255), 1)
+        if self.debug:
+            print("Centers at scanlines:", centers)
         if self.publish_visualization:
-            return frame,lane_mask, mask_red, centers
+            return frame, lane_mask, mask_red, centers
         else:
             return centers
 
@@ -168,11 +188,11 @@ class LaneDetector:
 
 
 if __name__ == "__main__":
-    IMAGE_PATH = "test/test_img/image06.png"
+    IMAGE_PATH = "test/test_img/image09.png"
     frame = cv2.imread(IMAGE_PATH)
     if frame is None:
         raise FileNotFoundError(f"Cannot load image: {IMAGE_PATH}")
 
-    detector = LaneDetector(debug=True)
+    detector = LaneDetector(debug=True,visual_debug=True)
     frame_out, mask_out, edges_out, centers = detector.center_detect(frame)
     detector.visualize(frame_out, mask_out, edges_out)

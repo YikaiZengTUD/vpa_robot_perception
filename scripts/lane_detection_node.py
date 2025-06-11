@@ -60,7 +60,7 @@ class LaneDetectorNode:
         self.near_car_pub.publish(Bool(data=self.detector.near_car))
 
         lane_centers_msg = Int32MultiArray()
-        lane_centers_msg.data = self.lane_center
+        lane_centers_msg.data = [c if c is not None else -1 for c in self.lane_center]
         self.center_pub.publish(lane_centers_msg)
 
 if __name__ == "__main__":

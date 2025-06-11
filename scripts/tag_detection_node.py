@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import rospy
 from sensor_msgs.msg import Image
-from std_msgs.msg import Int32MultiArray, Bool
+from std_msgs.msg import Bool
 from cv_bridge import CvBridge
 import cv2
 import socket
@@ -33,7 +33,7 @@ class AprilTagDetectorNode:
         self.near_stop_line = False
         self.near_stop_line_last = False
         self.image_msg = None
-        rospy.loginfo("[%s] AprilTagDetectorNode started. Debug=%s Pose=%s", self.robot_name, self.debug, self.use_pose)
+        rospy.loginfo("%s: AprilTagDetectorNode started. Debug=%s Pose=%s", self.robot_name, self.debug, self.use_pose)
 
 
     def stop_line_cb(self, msg):
@@ -68,7 +68,7 @@ class AprilTagDetectorNode:
             print("Detected tags:", tag_ids)
         
         det = detections[0] if detections else None
-        if 'pose_R' in det and 'pose_t' in det and det['pose_R'] is not None and det['pose_t'] is not None:
+        if det is not None and 'pose_R' in det and 'pose_t' in det and det['pose_R'] is not None and det['pose_t'] is not None:
             T_cam_tag = np.eye(4)
             T_cam_tag[:3, :3] = det['pose_R']
             T_cam_tag[:3, 3] = det['pose_t'].flatten()
@@ -89,6 +89,9 @@ class AprilTagDetectorNode:
             trans.transform.rotation.w = quat[3]
 
             self.tf_broadcaster.sendTransform(trans)
+        else:
+            rospy.logwarn("[%s] No valid tag detected near stop line.", self.robot_name)
+
 
             if self.debug:
                 rospy.loginfo("[%s] Detected tag %d at position: (%.2f, %.2f, %.2f)", 
