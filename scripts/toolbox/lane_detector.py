@@ -110,15 +110,14 @@ class LaneDetector:
                 left_cluster    = yellow_clusters[0]
                 left_point      = np.mean(left_cluster)
 
+                # Determine right_point using white_indices if available, else estimate
+                right_point = left_point + self.lane_width_at(y)
                 if len(white_indices) > 0:
-                    right_cluster   = self.cluster_indices(white_indices)[-1]
-                    if len(right_cluster) > 10:
-                        right_point     = np.mean(right_cluster)
-                    else:
-                        right_point     = left_point + self.lane_width_at(y)
-
-                else:
-                    right_point     = left_point + self.lane_width_at(y)
+                    right_clusters = self.cluster_indices(white_indices)
+                    if right_clusters:
+                        right_cluster = right_clusters[-1]
+                        if len(right_cluster) > 10:
+                            right_point = np.mean(right_cluster)
 
                 if self.debug:
                     print(f"Yellow clusters at y={y}: {left_point}, Right point: {right_point}")
