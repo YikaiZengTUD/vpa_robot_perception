@@ -104,7 +104,10 @@ class LaneDetector:
             if len(yellow_indices) > 0:
                 # if we have yellow points, we can solely rely on them
                 yellow_clusters = self.cluster_indices(yellow_indices)
-                yellow_clusters = [c for c in yellow_clusters if len(c) >= 10]
+                if self.debug:
+                    for cluster in yellow_clusters:
+                        print(f"Yellow cluster at y={y}: {cluster}")
+                yellow_clusters = [c for c in yellow_clusters if len(c) >= 4]
                 if len(yellow_clusters) == 0:
                     continue
                 left_cluster    = yellow_clusters[0]
@@ -198,7 +201,7 @@ class LaneDetector:
 
 
 if __name__ == "__main__":
-    IMAGE_PATH = "test/test_img/image06.png"
+    IMAGE_PATH = "test/test_img/image10.png"
     frame = cv2.imread(IMAGE_PATH)
     if frame is None:
         raise FileNotFoundError(f"Cannot load image: {IMAGE_PATH}")
