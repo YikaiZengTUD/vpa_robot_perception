@@ -72,7 +72,7 @@ class AprilTagDetectorNode:
             T_cam_tag = np.eye(4)
             T_cam_tag[:3, :3] = det['pose_R']
             T_cam_tag[:3, 3] = det['pose_t'].flatten()
-            T_base_tag = self.base_to_camera @ T_cam_tag
+            T_base_tag = self.base_to_camera_default @ T_cam_tag
 
             trans = geometry_msgs.msg.TransformStamped()
             trans.header.stamp = rospy.Time.now()
