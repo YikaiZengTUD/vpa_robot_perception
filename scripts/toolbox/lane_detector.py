@@ -40,7 +40,7 @@ class LaneDetector:
                 if self.debug:
                     print(f"Average y of red points: {avg_y}")
                 if avg_y > 160:
-                    if self.debug:
+                    if self.publish_visualization:
                         return mask_red, True
                     else:
                         return True
