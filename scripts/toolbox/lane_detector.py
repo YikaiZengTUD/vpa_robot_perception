@@ -46,7 +46,7 @@ class LaneDetector:
                         return True
 
         if self.publish_visualization:
-            return None, False
+            return mask_red, False
         else:
             return False
 
