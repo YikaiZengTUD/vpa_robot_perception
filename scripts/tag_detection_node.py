@@ -43,12 +43,12 @@ class AprilTagDetectorNode:
         if self.near_stop_line and not self.near_stop_line_last:
             # When we are near the stop line, we want to process the image
             # but not repeat the processing if we are still near the stop line
-            rospy.loginfo("[%s] Near stop line: %s", self.robot_name, self.near_stop_line)
+            rospy.loginfo("%s: Near stop line: %s", self.robot_name, self.near_stop_line)
             try:
                 image_msg = rospy.wait_for_message("robot_cam/image_raw", Image, timeout=2.0)
                 self.image_callback(image_msg)
             except rospy.ROSException as e:
-                rospy.logerr("[%s] Failed to receive image: %s", self.robot_name, str(e))
+                rospy.logerr("%s: Failed to receive image: %s", self.robot_name, str(e))
         else:
             return
 
