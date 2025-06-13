@@ -24,6 +24,7 @@ class AprilTagWrapper:
         self.debug    = debug
         if self.debug:
             self.debug_image = None
+            self.debug_gray = None
         self.detector = ATDetector(families=tag_family)
         self.use_pose = True
         self.tag_size = tag_size
@@ -40,6 +41,7 @@ class AprilTagWrapper:
     
     def detect(self, frame_bgr):
         gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
+        # gray = cv2.equalizeHist(gray)
 
         if self.use_pose:
             results = self.detector.detect(
@@ -54,6 +56,7 @@ class AprilTagWrapper:
         detections = []
         debug_image = frame_bgr.copy()
 
+        
         for tag in results:
             if tag.tag_id < 300:
                 continue  # Skip tags with id < 300, MiniCCAM lab settings
@@ -67,7 +70,15 @@ class AprilTagWrapper:
                 det['pose_t'] = getattr(tag, 'pose_t', None)
 
             detections.append(det)
-
+            
+            if len(results) == 0:
+                if self.debug:
+                    self.debug_gray = gray
+                    cv2.putText(debug_image, "No tags detected", (10, 30),
+                                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                    self.debug_image = debug_image
+                return detections, debug_image if self.debug else None
+                    
             if self.debug:
                 pts = np.int32(tag.corners)
                 cx, cy = map(int, tag.center)
@@ -110,12 +121,18 @@ class AprilTagWrapper:
         return detections, debug_image if self.debug else None
     def visualize(self):
         from matplotlib import pyplot as plt
-        plt.figure(figsize=(8, 6))
-        plt.imshow(cv2.cvtColor(self.debug_image, cv2.COLOR_BGR2RGB))
-        plt.title("AprilTag Detections")
-        plt.axis("off")
+        fig, axs = plt.subplots(1, 2, figsize=(12, 6))
+        axs[0].imshow(cv2.cvtColor(self.debug_image, cv2.COLOR_BGR2RGB))
+        axs[0].set_title("AprilTag Detections")
+        axs[0].axis("off")
+        if self.debug_gray is None:
+            self.debug_gray = cv2.cvtColor(self.debug_image, cv2.COLOR_BGR2GRAY)
+        axs[1].imshow(self.debug_gray, cmap='gray')
+        axs[1].set_title("Grayscale Input to Detector")
+        axs[1].axis("off")
         plt.tight_layout()
         plt.show()
+
 # === Debug function for static image testing ===
 def test_on_image(image_path):
     image = cv2.imread(image_path)
@@ -127,4 +144,4 @@ def test_on_image(image_path):
     detector.visualize()
 
 if __name__ == "__main__":
-    test_on_image("test/test_img/image06.png")
+    test_on_image("test/test_img/image15.png")
