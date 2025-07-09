@@ -50,6 +50,78 @@ class LaneDetector:
         else:
             return False
 
+    def lane_boundaries_detect(self, frame, search_range_y = None, search_range_x = None):
+        result = []
+        # step 1: remove the upper part of the image
+        height, width = frame.shape[:2]
+        roi = np.zeros_like(frame)
+        cutting_height = int(height * 0.5)
+        roi[cutting_height:, :] = frame[cutting_height:, :]
+        frame = roi.copy()
+        # step 2: convert to HSV and create masks for yellow and white lanes
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        mask_yellow = cv2.inRange(hsv, self.lower_yellow, self.upper_yellow)
+        mask_white = cv2.inRange(hsv, self.lower_white, self.upper_white)
+
+        if self.publish_visualization:
+            mask_red, self.near_stop_line = self.stop_detect(hsv)
+            if mask_red is None:
+                mask_red = np.zeros_like(mask_yellow)
+        else:
+            self.near_stop_line = self.stop_detect(hsv)
+        
+        # step 3: search for lane boundaries
+        if search_range_x is None:
+            search_range_x = (0, width)
+        if search_range_y is None:
+            search_range_y = (0.5*height - 40, 0.5*height)
+
+        for search_y in np.arange(search_range_y[0], search_range_y[1], 10):
+            scan_y = int(search_y)
+            yellow_line   = mask_yellow[scan_y, search_range_x[0]:search_range_x[1]]
+            if np.count_nonzero(yellow_line) >= 5:
+                yellow_indices = np.where(yellow_line > 0)[0]
+                clusters = self.cluster_indices(yellow_indices, gap=1)
+                for cluster in clusters:
+                    if len(cluster) >= 5:
+                        if self.debug:
+                            print(f"Continuous yellow line found at y={scan_y}, x={cluster[0]+search_range_x[0]} to {cluster[-1]+search_range_x[0]}")
+                    # this is a valid cluster for yellow lane 
+                        result.append((scan_y, np.mean(cluster),1))  # 1 for yellow lane
+                        break
+                    else: continue
+            else: continue
+            
+        for search_y in np.arange(search_range_y[0], search_range_y[1], 10):
+            scan_y = int(search_y)
+            white_line   = mask_white[scan_y, search_range_x[0]:search_range_x[1]]
+            if np.count_nonzero(white_line) >= 5:
+                white_indices = np.where(white_line > 0)[0]
+                clusters = self.cluster_indices(white_indices, gap=1)
+                for cluster in clusters:
+                    if len(cluster) >= 5:
+                        if self.debug:
+                            print(f"Continuous white line found at y={scan_y}, x={cluster[0]+search_range_x[0]} to {cluster[-1]+search_range_x[0]}")
+                        # this is a valid cluster for white lane 
+                        result.append((scan_y, np.mean(cluster),2))
+                    else: continue
+            else: continue
+        
+        if self.debug:
+            print(f"Detected lane boundaries: {len(result)}")
+            for r in result:
+                print(f"y={r[0]}, x={r[1]}, type={r[2]}")
+        if self.publish_visualization:
+            # Draw detected lane boundaries
+            for y, x, lane_type in result:
+                color = (0, 255, 0) if lane_type == 1 else (255, 255, 0)  # Green for yellow, Cyan for white
+                cv2.circle(frame, (int(x), int(y)), 4, color, -1)
+            image_center = width // 2
+            cv2.line(frame, (image_center, 0), (image_center, cutting_height), (100, 100, 255), 1)
+            return frame, mask_yellow, mask_white,result
+        return result
+         
+
     def center_detect(self, frame):
         # step 1: remove the upper part of the image
         height, width = frame.shape[:2]
