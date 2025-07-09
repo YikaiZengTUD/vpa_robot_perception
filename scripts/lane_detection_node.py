@@ -40,11 +40,13 @@ class LaneDetectorNode:
         except Exception as e:
             rospy.logerr("Failed to convert image: %s", str(e))
             return
-
+        
         if self.publish_result:
-            result_frame,_,_,self.lane_center = self.detector.center_detect(cv_image)
+            # result_frame,_,_,self.lane_center = self.detector.center_detect(cv_image)
+            result_frame,_,_,self.lane_info = self.detector.lane_boundaries_detect(cv_image,None,None)
         else:
-            self.lane_center = self.detector.center_detect(cv_image)
+            # self.lane_center = self.detector.center_detect(cv_image)
+            self.lane_info = self.detector.lane_boundaries_detect(cv_image,None,None)
         
         # Publish the centers if debug is enabled.
         # Other intermedia results are exposed but not published.
@@ -60,7 +62,10 @@ class LaneDetectorNode:
         self.near_car_pub.publish(Bool(data=self.detector.near_car))
 
         lane_centers_msg = Int32MultiArray()
-        lane_centers_msg.data = [c if c is not None else -1 for c in self.lane_center]
+        for x,y,type in self.lane_info:
+            lane_centers_msg.data.append(x)
+            lane_centers_msg.data.append(y)
+            lane_centers_msg.data.append(type)
         self.center_pub.publish(lane_centers_msg)
 
 if __name__ == "__main__":
