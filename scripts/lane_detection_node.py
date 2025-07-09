@@ -25,7 +25,7 @@ class LaneDetectorNode:
             self.res_pub    = rospy.Publisher("result_image", Image, queue_size=1)
         self.lane_center    = []
         self.bridge = CvBridge()
-        self.center_pub     = rospy.Publisher("perception/lane_centers", Int32MultiArray, queue_size=1)
+        self.center_pub     = rospy.Publisher("perception/lane_info", Int32MultiArray, queue_size=1)
         self.near_stop_pub  = rospy.Publisher("perception/near_stop_line", Bool, queue_size=1)
         self.near_car_pub   = rospy.Publisher("perception/near_car", Bool, queue_size=1)
         
