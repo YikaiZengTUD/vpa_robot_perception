@@ -9,6 +9,7 @@ from toolbox.tag_detector import AprilTagWrapper
 import tf2_ros
 import numpy as np
 import geometry_msgs.msg
+import tf.transformations
 class AprilTagDetectorNode:
     def __init__(self):
         rospy.init_node("tag_detector_node")
@@ -81,23 +82,24 @@ class AprilTagDetectorNode:
             trans.transform.translation.x = T_base_tag[0, 3]
             trans.transform.translation.y = T_base_tag[1, 3]
             trans.transform.translation.z = T_base_tag[2, 3]
-
-            quat = tf2_ros.transformations.quaternion_from_matrix(T_base_tag)
+            quat = tf.transformations.quaternion_from_matrix(T_base_tag)
             trans.transform.rotation.x = quat[0]
             trans.transform.rotation.y = quat[1]
             trans.transform.rotation.z = quat[2]
             trans.transform.rotation.w = quat[3]
+            trans.transform.rotation.w = quat[3]
 
             self.tf_broadcaster.sendTransform(trans)
         else:
-            rospy.logwarn("[%s] No valid tag detected near stop line.", self.robot_name)
+            rospy.logwarn("%s: No valid tag detected near stop line.", self.robot_name)
+            # Save the current frame as an image for debugging
+            save_path = f"/tmp/tag_detection_{rospy.Time.now().to_nsec()}.jpg"
+            cv2.imwrite(save_path, frame)
+            rospy.loginfo("[%s] Saved tag detection image to %s", self.robot_name, save_path)
+            # rospy.loginfo("[%s] Detected tag %d at position: (%.2f, %.2f, %.2f)", 
+            #               self.robot_name, det['id'], 
+            #               T_base_tag[0, 3], T_base_tag[1, 3], T_base_tag[2, 3])
 
-
-            if self.debug:
-                rospy.loginfo("[%s] Detected tag %d at position: (%.2f, %.2f, %.2f)", 
-                              self.robot_name, det['id'], 
-                              T_base_tag[0, 3], T_base_tag[1, 3], T_base_tag[2, 3])
-    
 
 if __name__ == "__main__":
     try:
