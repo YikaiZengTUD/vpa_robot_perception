@@ -11,8 +11,8 @@ class LaneDetector:
 
         self.publish_visualization = visual_debug
 
-        self.lower_yellow   = (20, 80, 200)
-        self.upper_yellow   = (40, 230, 255)
+        self.lower_yellow   = (20, 10, 200)
+        self.upper_yellow   = (80, 230, 255)
         
         self.lower_white    = (0, 0, 200)
         self.upper_white    = (150, 30, 255)
@@ -83,6 +83,7 @@ class LaneDetector:
             cv2.circle(frame, (int(self.last_right_boundary), scan_y), 4, (0, 0, 255), -1)
 
             self.visualize(frame, self.lane_mask, self.mask_red)
+            self.result_frame = frame
 
 
         
@@ -91,7 +92,7 @@ class LaneDetector:
         # there should always be a yellow line on the left side of the lane, 
         # but it can be next to a whitle line, which is the right boundary of the other lane
         # therefore we need to try distinguish the two lines
-
+        skip_white = False
         left_yellow_boundary = None
         right_white_boundary = None
 
@@ -115,32 +116,35 @@ class LaneDetector:
                     if len(yellow_clusters) > 1:
                         right_yellow_cluster = yellow_clusters[1]
                         right_yellow_boundary = int(np.mean(right_yellow_cluster))
+                        right_white_boundary = right_yellow_boundary 
+                        skip_white = True
                     else:
                         right_yellow_boundary = 360 # if there is no right yellow line, we set it to a large value
             else:
                 continue
-                    
-        # we should only care the while line in btween the two yellow lines
-        if left_yellow_boundary is None:
-            # unable to find left yellow line
-            left_yellow_boundary = 0
-            right_yellow_boundary = 360
-
-        row = mask_white[scan_height,left_yellow_boundary:right_yellow_boundary]
-        white_indices = np.where(row > 0)[0]
         
-        if len(white_indices) > 0:
-            white_clusters = self._detect_clusters(white_indices)
-            if len(white_clusters) == 1:
-                # chose the one nearest to the right yellow line
-                right_white_cluster = white_clusters[-1]
-                right_white_boundary = int(np.mean(right_white_cluster)) + left_yellow_boundary
-            elif len(white_clusters) > 1:
-                right_white_cluster = white_clusters[-1]
-                right_white_boundary = int(np.mean(right_white_cluster)) + left_yellow_boundary
-                if left_yellow_boundary == 0:
-                    # this is very likely a color reflection problem, we can then gusee
-                    left_yellow_boundary = int(np.mean(white_clusters[0]))
+        if not skip_white:
+        # we should only care the while line in btween the two yellow lines
+            if left_yellow_boundary is None:
+                # unable to find left yellow line
+                left_yellow_boundary = 0
+                right_yellow_boundary = 360
+
+            row = mask_white[scan_height,left_yellow_boundary:right_yellow_boundary]
+            white_indices = np.where(row > 0)[0]
+            
+            if len(white_indices) > 0:
+                white_clusters = self._detect_clusters(white_indices)
+                if len(white_clusters) == 1:
+                    # chose the one nearest to the right yellow line
+                    right_white_cluster = white_clusters[-1]
+                    right_white_boundary = int(np.mean(right_white_cluster)) + left_yellow_boundary
+                elif len(white_clusters) > 1:
+                    right_white_cluster = white_clusters[-1]
+                    right_white_boundary = int(np.mean(right_white_cluster)) + left_yellow_boundary
+                    if left_yellow_boundary == 0:
+                        # this is very likely a color reflection problem, we can then gusee
+                        left_yellow_boundary = int(np.mean(white_clusters[0]))
 
         if self.debug:
             print(f"Left boundary: {left_yellow_boundary}, Right boundary: {right_white_boundary}")
@@ -187,7 +191,7 @@ class LaneDetector:
         plt.tight_layout()
         plt.show()
 if __name__ == "__main__":
-    IMAGE_PATH = "test/test_img/image04.png"
+    IMAGE_PATH = "test/test_img/image07.png"
     frame = cv2.imread(IMAGE_PATH)
     if frame is None:
         raise FileNotFoundError(f"Cannot load image: {IMAGE_PATH}")
