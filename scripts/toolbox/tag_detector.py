@@ -121,17 +121,25 @@ class AprilTagWrapper:
         return detections, debug_image if self.debug else None
     def visualize(self):
         from matplotlib import pyplot as plt
+
         fig, axs = plt.subplots(1, 2, figsize=(12, 6))
-        axs[0].imshow(cv2.cvtColor(self.debug_image, cv2.COLOR_BGR2RGB))
-        axs[0].set_title("AprilTag Detections")
-        axs[0].axis("off")
+        if self.debug_image is None:
+            raise ValueError("Debug image is not initialized. Ensure detect() is called before visualize().")
         if self.debug_gray is None:
             self.debug_gray = cv2.cvtColor(self.debug_image, cv2.COLOR_BGR2GRAY)
-        axs[1].imshow(self.debug_gray, cmap='gray')
-        axs[1].set_title("Grayscale Input to Detector")
+
+        fig, axs = plt.subplots(1, 2, figsize=(12, 6))
+
+        axs[0].plot([], [])  # Placeholder to avoid imshow
+        axs[0].set_title("Debug Image")
+        axs[0].axis("off")
+
+        axs[1].plot([], [])  # Placeholder to avoid imshow
+        axs[1].set_title("Grayscale Input")
         axs[1].axis("off")
+
         plt.tight_layout()
-        plt.show()
+        plt.savefig("debug_visualization.png")
 
 # === Debug function for static image testing ===
 def test_on_image(image_path):
@@ -140,8 +148,45 @@ def test_on_image(image_path):
         raise FileNotFoundError(f"Image not found at {image_path}")
 
     detector = AprilTagWrapper(debug=True)
-    detector.detect(image)
+    det = detector.detect(image)
+    if len(det[0]) == 0:
+        print("No tags detected")
+        return None
     detector.visualize()
+    tag_det = det[0]
+    return tag_det
+
 
 if __name__ == "__main__":
-    test_on_image("test/test_img/image15.png")
+    from scipy.spatial.transform import Rotation as R
+
+    test_tag = test_on_image("test/test_img/image17.png")
+    if test_tag is None:
+        exit(0)
+    T_base_to_camera = np.array([
+            [0, -0.258819045,  0.965925826,  0.0585],
+            [1,  0,            0.0,          0.0   ],
+            [0, -0.965925826, -0.258819045,  0.0742],
+            [0.0, 0.0, 0.0, 1.0]
+        ])
+    pose_R = test_tag[0]['pose_R']
+    pose_t = test_tag[0]['pose_t']
+    T_camera_to_tag = np.eye(4)
+    T_camera_to_tag[0:3, 0:3] = pose_R
+    T_camera_to_tag[0:3, 3] = pose_t.flatten()
+
+    T_base_to_tag = T_base_to_camera @ T_camera_to_tag
+
+    print("T_base_to_tag:\n", T_base_to_tag)
+
+    pose_t_tag_in_base = T_base_to_tag[0:3, 3]
+    x = pose_t_tag_in_base[0]
+    y = pose_t_tag_in_base[1]
+
+    pose_r_tag_in_base = R.from_matrix(T_base_to_tag[0:3, 0:3])
+    yaw, pitch, roll = pose_r_tag_in_base.as_euler('zyx', degrees=True)
+    theta = pose_r_tag_in_base.as_euler('zyx')[0] 
+
+    print(f"Tag position in base frame: x={x:.3f} m, y={y:.3f} m")
+    print(f"Tag orientation in base frame: yaw={yaw:.2f}°")
+    print(f"Tag orientation in base frame: theta={theta:.2f} rad")
