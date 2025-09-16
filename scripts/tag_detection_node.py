@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 import rospy
 from sensor_msgs.msg import Image
+from geo_msgs.msg import Pose2D
 from std_msgs.msg import Bool
 from cv_bridge import CvBridge
 import cv2
 import socket
-from toolbox.tag_detector import AprilTagWrapper
+from toolbox.tag_detector import AprilTagWrapper, T_base_to_tag
 import tf2_ros
 import numpy as np
-import geometry_msgs.msg
-import tf.transformations
+from scipy.spatial.transform import Rotation as R
+
 class AprilTagDetectorNode:
     def __init__(self):
         rospy.init_node("tag_detector_node")
@@ -19,6 +20,9 @@ class AprilTagDetectorNode:
         self.use_pose   = rospy.get_param("~use_pose", True)
         self.tag_size   = rospy.get_param("~tag_size", 0.06)
         self.bridge     = CvBridge()
+
+        self.tag_x = 0.03
+        self.tag_y = 0.0
 
         self.tf_broadcaster = tf2_ros.TransformBroadcaster()
         # this default for DB19 robot, should allowed to be overridden by launch file
@@ -33,6 +37,7 @@ class AprilTagDetectorNode:
 
         self.near_stop_line = False
         self.near_stop_line_last = False
+        self.pose_pub = rospy.Publisher("start_pose", Pose2D, queue_size=1)
         self.image_msg = None
         rospy.loginfo("%s: AprilTagDetectorNode started. Debug=%s Pose=%s", self.robot_name, self.debug, self.use_pose)
 
@@ -44,10 +49,14 @@ class AprilTagDetectorNode:
         if self.near_stop_line and not self.near_stop_line_last:
             # When we are near the stop line, we want to process the image
             # but not repeat the processing if we are still near the stop line
-            rospy.loginfo("%s: Near stop line: %s", self.robot_name, self.near_stop_line)
+            rospy.loginfo("%s: [TAG DETECTOR INFO] Near stop line: %s", self.robot_name, self.near_stop_line)
+            is_success = False
+            time_out_count = 5
             try:
-                image_msg = rospy.wait_for_message("robot_cam/image_raw", Image, timeout=2.0)
-                self.image_callback(image_msg)
+                while not is_success and time_out_count > 0:
+                    image_msg = rospy.wait_for_message("robot_cam/image_raw", Image, timeout=2.0)
+                    is_success = self.image_callback(image_msg)
+                    time_out_count -= 1
             except rospy.ROSException as e:
                 rospy.logerr("%s: Failed to receive image: %s", self.robot_name, str(e))
         else:
@@ -59,7 +68,7 @@ class AprilTagDetectorNode:
             frame = self.bridge.imgmsg_to_cv2(msg, "bgr8")
         except Exception as e:
             rospy.logerr("[%s] Image conversion failed: %s", self.robot_name, str(e))
-            return
+            return False
 
         detections, _ = self.detector.detect(frame)
 
@@ -75,27 +84,28 @@ class AprilTagDetectorNode:
             T_cam_tag[:3, 3] = det['pose_t'].flatten()
             T_base_tag = self.base_to_camera_default @ T_cam_tag
 
-            trans = geometry_msgs.msg.TransformStamped()
-            trans.header.stamp = rospy.Time.now()
-            trans.header.frame_id = "base_link"
-            trans.child_frame_id = f"tag_{det['id']}"
-            trans.transform.translation.x = T_base_tag[0, 3]
-            trans.transform.translation.y = T_base_tag[1, 3]
-            trans.transform.translation.z = T_base_tag[2, 3]
-            quat = tf.transformations.quaternion_from_matrix(T_base_tag)
-            trans.transform.rotation.x = quat[0]
-            trans.transform.rotation.y = quat[1]
-            trans.transform.rotation.z = quat[2]
-            trans.transform.rotation.w = quat[3]
-            trans.transform.rotation.w = quat[3]
+            pose_t_tag_in_base = T_base_tag[0:3, 3]
+            x  = self.tag_x - pose_t_tag_in_base[0]
+            y  = self.tag_y - pose_t_tag_in_base[1]
 
-            self.tf_broadcaster.sendTransform(trans)
+            pose_r_tag_in_base = R.from_matrix(T_base_to_tag[0:3, 0:3])
+            theta = pose_r_tag_in_base.as_euler('zyx')[0] 
+
+            pose_msg = Pose2D()
+            pose_msg.x = x
+            pose_msg.y = y
+            pose_msg.theta = theta
+            self.pose_pub.publish(pose_msg)
+            return True
+
         else:
-            rospy.logwarn("%s: No valid tag detected near stop line.", self.robot_name)
+            rospy.logwarn("%s: [TAG DETECT INFO] No valid tag detected near stop line.", self.robot_name)
+            return False
+
             # Save the current frame as an image for debugging
-            save_path = f"/tmp/tag_detection_{rospy.Time.now().to_nsec()}.jpg"
-            cv2.imwrite(save_path, frame)
-            rospy.loginfo("[%s] Saved tag detection image to %s", self.robot_name, save_path)
+            # save_path = f"/tmp/tag_detection_{rospy.Time.now().to_nsec()}.jpg"
+            # cv2.imwrite(save_path, frame)
+            # rospy.loginfo("[%s] Saved tag detection image to %s", self.robot_name, save_path)
             # rospy.loginfo("[%s] Detected tag %d at position: (%.2f, %.2f, %.2f)", 
             #               self.robot_name, det['id'], 
             #               T_base_tag[0, 3], T_base_tag[1, 3], T_base_tag[2, 3])
