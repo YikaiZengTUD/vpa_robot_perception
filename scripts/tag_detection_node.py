@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
 import rospy
 from sensor_msgs.msg import Image
-from geo_msgs.msg import Pose2D
-from std_msgs.msg import Bool
+from geometry_msgs.msg import Pose2D
+from std_msgs.msg import Bool, Int32
 from cv_bridge import CvBridge
-import cv2
 import socket
-from toolbox.tag_detector import AprilTagWrapper, T_base_to_tag
-import tf2_ros
+from toolbox.tag_detector import AprilTagWrapper
 import numpy as np
-from scipy.spatial.transform import Rotation as R
+
+import math 
+
+def yaw_zyx_from_R(R):
+
+    return math.atan2(R[1,0], R[0,0])  # radians
 
 class AprilTagDetectorNode:
     def __init__(self):
@@ -21,16 +24,15 @@ class AprilTagDetectorNode:
         self.tag_size   = rospy.get_param("~tag_size", 0.06)
         self.bridge     = CvBridge()
 
-        self.tag_x = 0.03
+        self.tag_x = 0.12
         self.tag_y = 0.0
-
-        self.tf_broadcaster = tf2_ros.TransformBroadcaster()
+        self.tag_id_pub = rospy.Publisher("perception/detected_tag_id", Int32, queue_size=1)
         # this default for DB19 robot, should allowed to be overridden by launch file
         self.base_to_camera_default = np.array([
-            [0, -0.258819045,  0.965925826,  0.0585],
-            [1,  0,            0.0,          0.0   ],
-            [0, -0.965925826, -0.258819045,  0.0742],
-            [0.0, 0.0, 0.0, 1.0]
+            [-0.25881905,  0.0,         0.96592583,  0.0585],
+            [-0.96592583,  0.0,        -0.25881905,  0.0   ],
+            [ 0.0,        -1.0,         0.0,         0.0742],
+            [ 0.0,         0.0,         0.0,         1.0   ]
         ])
         self.detector = AprilTagWrapper(debug=self.debug, tag_size=self.tag_size)
         rospy.Subscriber("perception/near_stop_line", Bool, self.stop_line_cb, queue_size=1)
@@ -79,23 +81,50 @@ class AprilTagDetectorNode:
         
         det = detections[0] if detections else None
         if det is not None and 'pose_R' in det and 'pose_t' in det and det['pose_R'] is not None and det['pose_t'] is not None:
-            T_cam_tag = np.eye(4)
-            T_cam_tag[:3, :3] = det['pose_R']
-            T_cam_tag[:3, 3] = det['pose_t'].flatten()
-            T_base_tag = self.base_to_camera_default @ T_cam_tag
 
-            pose_t_tag_in_base = T_base_tag[0:3, 3]
-            x  = self.tag_x - pose_t_tag_in_base[0]
-            y  = self.tag_y - pose_t_tag_in_base[1]
+            T_base_to_camera = self.base_to_camera_default
 
-            pose_r_tag_in_base = R.from_matrix(T_base_to_tag[0:3, 0:3])
-            theta = pose_r_tag_in_base.as_euler('zyx')[0] 
+            pose_R = det['pose_R']
+            pose_t = det['pose_t']
+
+            R_tc = pose_R
+            R_ct = R_tc.T
+
+            t_tc = pose_t.reshape(3)   
+
+            t_ct = -R_ct @ t_tc                       # camera origin in TAG frame
+            T_camera_to_tag = np.eye(4, dtype=float)
+            T_camera_to_tag[:3, :3] = R_ct
+            T_camera_to_tag[:3, 3]  = t_ct
+
+
+            R_bc = T_base_to_camera[:3, :3]
+            t_bc = T_base_to_camera[:3, 3]
+
+            R_bt = R_bc @ R_ct                        # final rotation base->tag
+            p_b  = t_bc + R_bc @ t_tc                 # final translation base->tag (uses tag-in-CAMERA)
+
+            T_base_to_tag = np.eye(4, dtype=float)
+            T_base_to_tag[:3, :3] = R_bt
+            T_base_to_tag[:3, 3]  = p_b
+            T_tag_to_base = np.linalg.inv(T_base_to_tag) 
+
+            R_bt = T_base_to_tag[:3, :3]
+            R_bc = T_base_to_camera[:3, :3]
+
+            R_ct_from_base = R_bc.T @ R_bt
+
+            yaw_rad = yaw_zyx_from_R(R_ct_from_base)
+
+            x = -float(T_tag_to_base[0,3])
+            y = -float(T_tag_to_base[1,3])
 
             pose_msg = Pose2D()
-            pose_msg.x = x
-            pose_msg.y = y
-            pose_msg.theta = theta
+            pose_msg.x = self.tag_x - y
+            pose_msg.y = self.tag_y - x
+            pose_msg.theta = -yaw_rad
             self.pose_pub.publish(pose_msg)
+            rospy.loginfo("%s: [TAG DETECT INFO] Detected tag %d, start pose sent as (x=%.2f, y=%.2f, theta=%.2f degrees)", self.robot_name, det['id'], x, y, theta)
             return True
 
         else:
