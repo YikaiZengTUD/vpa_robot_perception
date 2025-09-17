@@ -17,7 +17,7 @@ class LaneDetectorNode:
         self.robot_name = socket.gethostname()
         
         self.debug = rospy.get_param("~debug", False)
-
+        self.lane_info = None
         self.publish_result = rospy.get_param("~publish_result", False)
 
         self.detector = LaneDetector(debug=self.debug, visual_debug=self.publish_result)
@@ -41,7 +41,7 @@ class LaneDetectorNode:
             rospy.logerr("Failed to convert image: %s", str(e))
             return
         
-        self.lane_info = self.detector.process_frame(cv_image)
+        self.lane_info = self.detector.image_process(cv_image)
         
         # Publish the centers if debug is enabled.
         # Other intermedia results are exposed but not published.
@@ -58,8 +58,11 @@ class LaneDetectorNode:
         self.near_car_pub.publish(Bool(data=self.detector.near_car))
 
         lane_centers_msg = Int32MultiArray()
-        for boundary in self.lane_info:
-            lane_centers_msg.data.append(boundary)
+        if self.lane_info is None:
+            self.lane_info = [] 
+        else:
+            for boundary in self.lane_info:
+                lane_centers_msg.data.append(boundary)
         self.center_pub.publish(lane_centers_msg)
 
 if __name__ == "__main__":
