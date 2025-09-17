@@ -81,6 +81,7 @@ class AprilTagDetectorNode:
         
         det = detections[0] if detections else None
         if det is not None and 'pose_R' in det and 'pose_t' in det and det['pose_R'] is not None and det['pose_t'] is not None:
+            self.tag_id_pub.publish(det['id'])
 
             T_base_to_camera = self.base_to_camera_default
 
@@ -124,7 +125,7 @@ class AprilTagDetectorNode:
             pose_msg.y = self.tag_y - x
             pose_msg.theta = -yaw_rad
             self.pose_pub.publish(pose_msg)
-            rospy.loginfo("%s: [TAG DETECT INFO] Detected tag %d, start pose sent as (x=%.2f, y=%.2f, theta=%.2f degrees)", self.robot_name, det['id'], x, y, theta)
+            rospy.loginfo("%s: [TAG DETECT INFO] Detected tag %d, start pose sent as (x=%.2f, y=%.2f, theta=%.2f degrees)", self.robot_name, det['id'], pose_msg.x, pose_msg.y, pose_msg.theta)
             return True
 
         else:
