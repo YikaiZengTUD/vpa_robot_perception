@@ -1,3 +1,4 @@
+import math
 import platform
 import cv2
 import numpy as np
@@ -28,8 +29,9 @@ class AprilTagWrapper:
         self.detector = ATDetector(families=tag_family)
         self.use_pose = True
         self.tag_size = tag_size
-        self.camera_params = [305.5718893575089, 308.8338858195428, 303.0797142544728, 231.8845403702499]  # fx, fy, cx, cy
-    
+        self.camera_params = [305.5718893575089 / 2, 308.8338858195428 / 2, 303.0797142544728 / 2, 231.8845403702499 / 2]
+        # self.camera_params = [305.5718893575089, 308.8338858195428, 303.0797142544728, 231.8845403702499]
+
     def set_camera_params(self, camera_params):
         """
         Set camera parameters for pose estimation.
@@ -84,6 +86,7 @@ class AprilTagWrapper:
                 cx, cy = map(int, tag.center)
                 
                 cv2.polylines(debug_image, [pts], True, (0, 255, 255), 2)  # Yellow outline for tag
+  
                 # Draw tag ID
                 cv2.putText(debug_image, str(tag.tag_id), (cx + 5, cy),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
@@ -122,24 +125,22 @@ class AprilTagWrapper:
     def visualize(self):
         from matplotlib import pyplot as plt
 
-        fig, axs = plt.subplots(1, 2, figsize=(12, 6))
         if self.debug_image is None:
             raise ValueError("Debug image is not initialized. Ensure detect() is called before visualize().")
         if self.debug_gray is None:
             self.debug_gray = cv2.cvtColor(self.debug_image, cv2.COLOR_BGR2GRAY)
 
         fig, axs = plt.subplots(1, 2, figsize=(12, 6))
-
-        axs[0].plot([], [])  # Placeholder to avoid imshow
+        axs[0].imshow(cv2.cvtColor(self.debug_image, cv2.COLOR_BGR2RGB))
         axs[0].set_title("Debug Image")
         axs[0].axis("off")
 
-        axs[1].plot([], [])  # Placeholder to avoid imshow
-        axs[1].set_title("Grayscale Input")
+        axs[1].imshow(self.debug_gray, cmap='gray')
+        axs[1].set_title("Grayscale Image")
         axs[1].axis("off")
 
         plt.tight_layout()
-        plt.savefig("debug_visualization.png")
+        plt.show()
 
 # === Debug function for static image testing ===
 def test_on_image(image_path):
@@ -158,35 +159,90 @@ def test_on_image(image_path):
 
 
 if __name__ == "__main__":
-    from scipy.spatial.transform import Rotation as R
 
-    test_tag = test_on_image("test/test_img/image17.png")
+    test_tag = test_on_image("test/test_img/image21.png")
     if test_tag is None:
         exit(0)
-    T_base_to_camera = np.array([
-            [0, -0.258819045,  0.965925826,  0.0585],
-            [1,  0,            0.0,          0.0   ],
-            [0, -0.965925826, -0.258819045,  0.0742],
-            [0.0, 0.0, 0.0, 1.0]
-        ])
+
+    def assert_proper(T):
+        R = T[:3, :3]
+        assert np.isclose(np.linalg.det(R), 1.0, atol=1e-6), "Rotation det != +1"
+        assert np.allclose(np.cross(R[:,0], R[:,1]), R[:,2], atol=1e-6), "Not right-handed"
+
+
+    def R_base_to_camera_optical(lean_deg: float) -> np.ndarray:
+        a = math.radians(lean_deg)
+        # base -> camera_link (pitch about BASE Y)
+        Ry = np.array([
+            [ math.cos(a), 0, math.sin(a)],
+            [ 0,           1, 0          ],
+            [-math.sin(a), 0, math.cos(a)]
+        ], dtype=float)
+
+        # camera_link -> camera_optical (REP-103 canonical)
+        R_cl2opt = np.array([
+            [ 0,  0,  1],
+            [-1,  0,  0],
+            [ 0, -1,  0],
+        ], dtype=float)
+
+        # base -> camera_optical
+        return R_cl2opt @ Ry
+    
+    
+
+    T_base_to_camera = np.eye(4)
+    T_base_to_camera[:3,:3] = R_base_to_camera_optical(15.0)  # +15° forward lean
+    T_base_to_camera[:3, 3] = [0.0585, 0.0, 0.0742]   # camera position in BASE coords
+    print("T_base_to_camera:\n", T_base_to_camera)
     pose_R = test_tag[0]['pose_R']
     pose_t = test_tag[0]['pose_t']
-    T_camera_to_tag = np.eye(4)
-    T_camera_to_tag[0:3, 0:3] = pose_R
-    T_camera_to_tag[0:3, 3] = pose_t.flatten()
 
-    T_base_to_tag = T_base_to_camera @ T_camera_to_tag
+# --- begin drop-in fix ---
 
-    print("T_base_to_tag:\n", T_base_to_tag)
 
-    pose_t_tag_in_base = T_base_to_tag[0:3, 3]
-    x = pose_t_tag_in_base[0]
-    y = pose_t_tag_in_base[1]
+    # 1) Rotations
+    R_tc = pose_R
+    R_ct = R_tc.T                             # camera -> tag rotation
 
-    pose_r_tag_in_base = R.from_matrix(T_base_to_tag[0:3, 0:3])
-    yaw, pitch, roll = pose_r_tag_in_base.as_euler('zyx', degrees=True)
-    theta = pose_r_tag_in_base.as_euler('zyx')[0] 
+    # 2) Translations
+    t_tc = pose_t.reshape(3)                  # tag in CAMERA frame (z_cam > 0 if in front)
 
-    print(f"Tag position in base frame: x={x:.3f} m, y={y:.3f} m")
-    print(f"Tag orientation in base frame: yaw={yaw:.2f}°")
-    print(f"Tag orientation in base frame: theta={theta:.2f} rad")
+    # Optional sanity: camera-frame depth
+    # print("camera-frame t_tc (m):", t_tc)
+
+    # Reference camera->tag homogeneous (useful to inspect but not used for base translation)
+    t_ct = -R_ct @ t_tc                       # camera origin in TAG frame
+    T_camera_to_tag = np.eye(4, dtype=float)
+    T_camera_to_tag[:3, :3] = R_ct
+    T_camera_to_tag[:3, 3]  = t_ct
+    # print("T_camera_to_tag:\n", T_camera_to_tag)
+
+    # 3) Compose BASE -> TAG
+    R_bc = T_base_to_camera[:3, :3]
+    t_bc = T_base_to_camera[:3, 3]
+
+    R_bt = R_bc @ R_ct                        # final rotation base->tag
+    p_b  = t_bc + R_bc @ t_tc                 # final translation base->tag (uses tag-in-CAMERA)
+
+    T_base_to_tag = np.eye(4, dtype=float)
+    T_base_to_tag[:3, :3] = R_bt
+    T_base_to_tag[:3, 3]  = p_b
+    T_tag_to_base = np.linalg.inv(T_base_to_tag)    
+    print("T_tag_to_base:\n", T_tag_to_base)
+
+    def yaw_zyx_from_R(R):
+
+        return math.atan2(R[1,0], R[0,0])  # radians
+
+    R_bt = T_base_to_tag[:3, :3]
+    R_bc = T_base_to_camera[:3, :3]
+
+    R_ct_from_base = R_bc.T @ R_bt
+
+    yaw_rad = yaw_zyx_from_R(R_ct_from_base)
+    yaw_deg = math.degrees(yaw_rad)
+    x = -float(T_tag_to_base[0,3])
+    y = -float(T_tag_to_base[1,3])
+    print(f"Tag position (x,y) in BASE frame (m): {x,y}")
+    print(f"Camera/Base yaw in TAG coords (from T_base_to_tag): {yaw_deg:.2f}°")
