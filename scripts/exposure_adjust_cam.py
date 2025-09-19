@@ -17,7 +17,7 @@ cam = subprocess.Popen(
 )
 
 # 3) wait for node to come up and AWB to settle
-time.sleep(1.0)
+time.sleep(3.0)
 
 # 4) drop to operating exposure
 sh(f"v4l2-ctl -d {DEV} --set-ctrl=auto_exposure=1,exposure_time_absolute={EXPO_LO}")
