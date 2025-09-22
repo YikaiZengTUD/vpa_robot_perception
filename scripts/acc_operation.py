@@ -23,7 +23,7 @@ class ACCLeadNode:
 
         self.bridge = CvBridge()
 
-        self.front_region = 320 * (0.3, 0.7)
+        self.front_region = [110, 210]
 
         self.last_valid_time = None
 
@@ -65,11 +65,23 @@ class ACCLeadNode:
             r1,r2  = det['radii']
             center1_xy, center2_xy = det['centers']
             center_x = (center1_xy[0] + center2_xy[0]) / 2.0
+            # print(f"Detected radii: r1={r1:.2f}, r2={r2:.2f}, center_x={center_x:.2f}")
+            # print(f"Front region: {self.front_region}")
             if center_x > self.front_region[0] and center_x < self.front_region[1]:
                 # Estimate distance based on radii
                 avg_radius = (r1 + r2) / 2.0
                 distance = self._estimate_distance(avg_radius)
+                # print(f"Estimated distance: {distance:.2f} m, avg_radius: {avg_radius:.2f} px")
                 self.last_valid_time = msg.header.stamp.to_sec()
+            else:
+                # out of front region
+                if self.last_valid_time is None:
+                    distance = self.z_max + 0.1  # No detection, set to max + margin
+                elif msg.header.stamp.to_sec() - self.last_valid_time > self.hold_time:
+                    distance = self.z_max + 0.1
+                    self.last_valid_time = None
+                else:
+                    distance = self.Z_ema if self.Z_ema is not None else self.z_max + 0.1
         else:
             if self.last_valid_time is None:
                 # no detection yet

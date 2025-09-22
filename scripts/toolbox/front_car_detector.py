@@ -148,7 +148,7 @@ def draw_detection(bgr, det):
 
 if __name__ == "__main__":
 
-    IMAGE_PATH = "test/test_img/acc/image4.png"
+    IMAGE_PATH = "test/test_img/acc/image6.png"
     frame = cv2.imread(IMAGE_PATH)
     if frame is None:
         raise FileNotFoundError(f"Cannot load image: {IMAGE_PATH}")
