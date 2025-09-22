@@ -140,7 +140,7 @@ class LaneDetector:
                 if len(white_clusters) > 0:
                     # choose the leftest cluster that is at least 30 pixels away from the yellow line
                     if left_yellow_boundary is not None:
-                        valid_white_clusters = [c for c in white_clusters if np.mean(c) - left_yellow_boundary > 30]
+                        valid_white_clusters = [c for c in white_clusters if np.mean(c) - left_yellow_boundary > 40]
                     else:
                         valid_white_clusters = white_clusters
                     if len(valid_white_clusters) > 0:
@@ -197,7 +197,7 @@ class LaneDetector:
         plt.show()
 
 if __name__ == "__main__":
-    IMAGE_PATH = "test/test_img/image33.png"
+    IMAGE_PATH = "test/test_img/image34.png"
     frame = cv2.imread(IMAGE_PATH)
     if frame is None:
         raise FileNotFoundError(f"Cannot load image: {IMAGE_PATH}")
