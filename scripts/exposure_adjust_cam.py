@@ -11,6 +11,7 @@ def sh(cmd):
 
 # 1) warm-up exposure before starting node
 sh(f"v4l2-ctl -d {DEV} --set-ctrl=auto_exposure=1,exposure_time_absolute={EXPO_HI}")
+sh(f"v4l2-ctl -d {DEV} --set-ctrl=iso_sensitivity=2")
 time.sleep(1.0)
 # show current exposure
 print("Current exposure before launch:")
