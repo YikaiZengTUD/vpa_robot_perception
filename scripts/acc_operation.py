@@ -29,7 +29,7 @@ class ACCLeadNode:
 
         self.K = rospy.get_param("~K", 2.916)      # power-law K (fit from 2–3 samples)
         self.p = rospy.get_param("~p", 1.644)        # power-law exponent
-        self.alpha = rospy.get_param("~alpha", 0.2) # EMA smoothing for Z
+        self.alpha = rospy.get_param("~alpha", 0.6) # Increase EMA smoothing factor for faster response
         self.z_min = rospy.get_param("~z_min", 0.1)
         self.z_max = rospy.get_param("~z_max", 1)
 
@@ -93,7 +93,7 @@ class ACCLeadNode:
             else:
                 # hold last valid distance
                 distance = self.Z_ema if self.Z_ema is not None else self.z_max + 0.1
-        
+
         self.lead_distance_pub.publish(Float32(data=distance))
 
 
