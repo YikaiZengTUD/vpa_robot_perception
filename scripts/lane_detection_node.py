@@ -54,7 +54,6 @@ class LaneDetectorNode:
 
     def timer_callback(self, event):
         self.near_stop_pub.publish(Bool(data=self.detector.near_stop_line))
-        self.near_car_pub.publish(Bool(data=self.detector.near_car))
 
         lane_centers_msg = Int32MultiArray()
         if self.lane_info is None:
