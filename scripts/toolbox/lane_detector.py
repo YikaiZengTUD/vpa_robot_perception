@@ -115,11 +115,11 @@ class LaneDetector:
             if len(yellow_indices) > 0:
                 yellow_clusters = self._detect_clusters(yellow_indices)
                 if len(yellow_clusters) > 0:
-                    # choose the leftest cluster
+                    # choose the widest cluster
                     # get the cluster of largest pts set
                     left_yellow_cluster = yellow_clusters[0]
                     for cluster in yellow_clusters:
-                        if np.mean(cluster) < np.mean(left_yellow_cluster):
+                        if len(cluster) > len(left_yellow_cluster):
                             left_yellow_cluster = cluster
                     left_yellow_boundary = int(np.mean(left_yellow_cluster))
                     break
@@ -197,7 +197,7 @@ class LaneDetector:
         plt.show()
 
 if __name__ == "__main__":
-    IMAGE_PATH = "test/test_img/image34.png"
+    IMAGE_PATH = "test/test_img/image36.png"
     frame = cv2.imread(IMAGE_PATH)
     if frame is None:
         raise FileNotFoundError(f"Cannot load image: {IMAGE_PATH}")
