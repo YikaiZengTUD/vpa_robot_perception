@@ -58,6 +58,7 @@ class AprilTagDetectorNode:
                 while not is_success and time_out_count > 0:
                     image_msg = rospy.wait_for_message("robot_cam/image_raw", Image, timeout=2.0)
                     is_success = self.image_callback(image_msg)
+                    rospy.sleep(0.1)
                     time_out_count -= 1
             except rospy.ROSException as e:
                 rospy.logerr("%s: Failed to receive image: %s", self.robot_name, str(e))
