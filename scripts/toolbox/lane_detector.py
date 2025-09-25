@@ -107,8 +107,8 @@ class LaneDetector:
         mask_white  = cv2.inRange(hsv_frame, self.lower_white, self.upper_white)
 
         num_of_white = np.count_nonzero(mask_white)
-        print(f"Number of white pixels detected: {num_of_white}")
-        if num_of_white > 8000:
+
+        if num_of_white > 15000:
             # this is too bright
             mask_white  = cv2.inRange(hsv_frame, self.lower_white1, self.upper_white)
 
