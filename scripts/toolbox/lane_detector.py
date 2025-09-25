@@ -15,7 +15,7 @@ class LaneDetector:
         self.upper_yellow   = (50, 255, 255)
         
         self.lower_white    = (0, 0, 110)
-        self.lower_white1   = (0, 0, 140)
+        self.lower_white1   = (0, 0, 200)
         self.upper_white    = (150, 50, 255)
 
         self.lower_red1     = (0, 100, 100)
@@ -107,6 +107,7 @@ class LaneDetector:
         mask_white  = cv2.inRange(hsv_frame, self.lower_white, self.upper_white)
 
         num_of_white = np.count_nonzero(mask_white)
+        print(f"Number of white pixels detected: {num_of_white}")
         if num_of_white > 8000:
             # this is too bright
             mask_white  = cv2.inRange(hsv_frame, self.lower_white1, self.upper_white)
@@ -204,7 +205,7 @@ class LaneDetector:
         plt.show()
 
 if __name__ == "__main__":
-    IMAGE_PATH = "test/test_img/image41.png"
+    IMAGE_PATH = "test/test_img/image40.png"
     frame = cv2.imread(IMAGE_PATH)
     if frame is None:
         raise FileNotFoundError(f"Cannot load image: {IMAGE_PATH}")
