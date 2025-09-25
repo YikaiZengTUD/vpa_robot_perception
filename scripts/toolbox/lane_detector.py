@@ -120,7 +120,8 @@ class LaneDetector:
                     left_yellow_cluster = yellow_clusters[0]
                     for cluster in yellow_clusters:
                         if len(cluster) > len(left_yellow_cluster):
-                            left_yellow_cluster = cluster
+                            if np.mean(cluster) < 140:
+                                left_yellow_cluster = cluster
                     left_yellow_boundary = int(np.mean(left_yellow_cluster))
                     break
             else:
