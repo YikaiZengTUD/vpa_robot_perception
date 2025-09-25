@@ -15,6 +15,7 @@ class LaneDetector:
         self.upper_yellow   = (50, 255, 255)
         
         self.lower_white    = (0, 0, 110)
+        self.lower_white1   = (0, 0, 140)
         self.upper_white    = (150, 50, 255)
 
         self.lower_red1     = (0, 100, 100)
@@ -105,6 +106,11 @@ class LaneDetector:
         mask_yellow = cv2.inRange(hsv_frame, self.lower_yellow, self.upper_yellow)
         mask_white  = cv2.inRange(hsv_frame, self.lower_white, self.upper_white)
 
+        num_of_white = np.count_nonzero(mask_white)
+        if num_of_white > 8000:
+            # this is too bright
+            mask_white  = cv2.inRange(hsv_frame, self.lower_white1, self.upper_white)
+
         scan_height_based = int(hsv_frame.shape[0]/2) 
         for row_offset in range(5,45,10):
             scan_height = scan_height_based + row_offset
@@ -120,7 +126,7 @@ class LaneDetector:
                     left_yellow_cluster = yellow_clusters[0]
                     for cluster in yellow_clusters:
                         if len(cluster) > len(left_yellow_cluster):
-                            if np.mean(cluster) < 140:
+                            if np.mean(cluster) < 180:
                                 left_yellow_cluster = cluster
                     left_yellow_boundary = int(np.mean(left_yellow_cluster))
                     break
@@ -155,7 +161,7 @@ class LaneDetector:
         if self.debug:
             print(f"Left boundary: {left_yellow_boundary}, Right boundary: {right_white_boundary}")
         if self.publish_visualization:
-            combined_mask = mask_yellow # optinal which one
+            combined_mask = mask_white # optinal which one
             return combined_mask, left_yellow_boundary, right_white_boundary, scan_height
 
         return left_yellow_boundary, right_white_boundary
@@ -198,7 +204,7 @@ class LaneDetector:
         plt.show()
 
 if __name__ == "__main__":
-    IMAGE_PATH = "test/test_img/image36.png"
+    IMAGE_PATH = "test/test_img/image41.png"
     frame = cv2.imread(IMAGE_PATH)
     if frame is None:
         raise FileNotFoundError(f"Cannot load image: {IMAGE_PATH}")
