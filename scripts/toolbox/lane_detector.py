@@ -43,7 +43,7 @@ class LaneDetector:
                 avg_y = int(np.mean(ys))
                 if self.debug:
                     print(f"Average y of red points: {avg_y}")
-                if avg_y > 180:
+                if avg_y > 160:
                     if self.publish_visualization:
                         return mask_red, True
                     else:
