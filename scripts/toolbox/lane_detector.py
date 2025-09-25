@@ -152,10 +152,11 @@ class LaneDetector:
                     else:
                         valid_white_clusters = white_clusters
                     if len(valid_white_clusters) > 0:
-                        right_white_cluster = valid_white_clusters[0]
+                        right_white_cluster = valid_white_clusters[-1]
                         for cluster in valid_white_clusters:
-                            if np.mean(cluster) < np.mean(right_white_cluster):
-                                right_white_cluster = cluster
+                            if len(cluster) > len(right_white_cluster):
+                                if np.mean(cluster) > 80:
+                                    right_white_cluster = cluster
                         right_white_boundary = int(np.mean(right_white_cluster))
                         break
 
@@ -205,7 +206,7 @@ class LaneDetector:
         plt.show()
 
 if __name__ == "__main__":
-    IMAGE_PATH = "test/test_img/image40.png"
+    IMAGE_PATH = "test/test_img/image43.png"
     frame = cv2.imread(IMAGE_PATH)
     if frame is None:
         raise FileNotFoundError(f"Cannot load image: {IMAGE_PATH}")
