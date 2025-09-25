@@ -33,7 +33,7 @@ class ACCLeadNode:
         self.z_min = rospy.get_param("~z_min", 0.1)
         self.z_max = rospy.get_param("~z_max", 1)
 
-        self.hold_time = 0.3
+        self.hold_time = 1.2
         self.Z_ema = None
 
         self.lead_distance_pub = rospy.Publisher("perception/lead_car_distance", Float32, queue_size=1)
