@@ -126,7 +126,7 @@ class AprilTagDetectorNode:
             pose_msg.y = self.tag_y - x
             pose_msg.theta = -yaw_rad
             self.pose_pub.publish(pose_msg)
-            rospy.loginfo("%s: [TAG DETECT INFO] Detected tag %d, start pose sent as (x=%.2f, y=%.2f, theta=%.2f degrees)", self.robot_name, det['id'], pose_msg.x, pose_msg.y, pose_msg.theta)
+            rospy.loginfo("%s: [TAG DETECT INFO] Detected tag %d, start pose sent as (x=%.2f, y=%.2f, theta=%.2f rad)", self.robot_name, det['id'], pose_msg.x, pose_msg.y, pose_msg.theta)
             return True
 
         else:
