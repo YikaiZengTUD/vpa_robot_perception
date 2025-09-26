@@ -15,7 +15,8 @@ class LaneDetector:
         self.upper_yellow   = (50, 255, 255)
         
         self.lower_white    = (0, 0, 110)
-        self.lower_white1   = (0, 0, 200)
+        self.lower_white1   = (0, 0, 130)
+        self.lower_white2   = (0, 0, 200)
         self.upper_white    = (150, 50, 255)
 
         self.lower_red1     = (0, 100, 100)
@@ -111,6 +112,9 @@ class LaneDetector:
         if num_of_white > 15000:
             # this is too bright
             mask_white  = cv2.inRange(hsv_frame, self.lower_white1, self.upper_white)
+            num_of_white = np.count_nonzero(mask_white)
+            if num_of_white > 15000:
+                mask_white  = cv2.inRange(hsv_frame, self.lower_white2, self.upper_white) # adaptive thresholding
 
         scan_height_based = int(hsv_frame.shape[0]/2) 
         for row_offset in range(5,45,10):
