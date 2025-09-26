@@ -108,12 +108,17 @@ class LaneDetector:
         mask_white  = cv2.inRange(hsv_frame, self.lower_white, self.upper_white)
 
         num_of_white = np.count_nonzero(mask_white)
-        if num_of_white > 12000:
+
+        if num_of_white > 7000:
             # this is too bright
             mask_white  = cv2.inRange(hsv_frame, self.lower_white1, self.upper_white)
             num_of_white = np.count_nonzero(mask_white)
-            if num_of_white > 6000:
+
+            if num_of_white > 4000:
                 mask_white  = cv2.inRange(hsv_frame, self.lower_white2, self.upper_white) # adaptive thresholding
+                num_of_white = np.count_nonzero(mask_white)
+
+
 
         scan_height_based = int(hsv_frame.shape[0]/2) 
         for row_offset in range(5,45,10):
@@ -209,7 +214,7 @@ class LaneDetector:
         plt.show()
 
 if __name__ == "__main__":
-    IMAGE_PATH = "test/test_img/image44.png"
+    IMAGE_PATH = "test/test_img/image46.png"
     frame = cv2.imread(IMAGE_PATH)
     if frame is None:
         raise FileNotFoundError(f"Cannot load image: {IMAGE_PATH}")
