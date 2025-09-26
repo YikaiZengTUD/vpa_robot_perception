@@ -2,6 +2,11 @@ import cv2
 import numpy as np
 import os
 
+try:
+    from toolbox.fine_tuning import fine_tuning_parameters
+except ImportError:
+    fine_tuning_parameters = {}
+
 class LaneDetector:
     # Essentially it detects everything that is on the lane, including other cars, stop lines, etc.
     # The naming is a bit misleading.
@@ -14,9 +19,39 @@ class LaneDetector:
         self.lower_yellow   = (20, 70, 130)
         self.upper_yellow   = (50, 255, 255)
         
-        self.lower_white    = (0, 0, 110)
-        self.lower_white1   = (0, 0, 130)
-        self.lower_white2   = (0, 0, 200)
+        if 'white_v_bound' in fine_tuning_parameters:
+            white_v_bound = fine_tuning_parameters['white_v_bound']
+            if isinstance(white_v_bound, list) and len(white_v_bound) == 3:
+                pass
+            else:
+                print("Warning: 'white_v_bound' in fine_tuning_parameters should be a list of three integers. Using default values.")
+                white_v_bound = [110, 130, 200]
+        else:
+            white_v_bound = [110, 130, 200]
+
+        self.dynamic_brightness_threshold1 = 7000
+        self.dynamic_brightness_threshold2 = 4000
+        self.dynamic_brightness_threshold3 = 2000
+
+        if 'dynamic_brightness_threshold1' in fine_tuning_parameters:
+            self.dynamic_brightness_threshold1 = fine_tuning_parameters['dynamic_brightness_threshold1']
+        if 'dynamic_brightness_threshold2' in fine_tuning_parameters:
+            self.dynamic_brightness_threshold2 = fine_tuning_parameters['dynamic_brightness_threshold2']
+        if 'dynamic_brightness_threshold3' in fine_tuning_parameters:
+            self.dynamic_brightness_threshold3 = fine_tuning_parameters['dynamic_brightness_threshold3']
+
+        self.near_stop_line_threshold1 = 2000
+        self.near_stop_line_threshold2 = 160
+
+        if 'near_stop_line_threshold1' in fine_tuning_parameters:
+            self.near_stop_line_threshold1 = fine_tuning_parameters['near_stop_line_threshold1']
+        if 'near_stop_line_threshold2' in fine_tuning_parameters:
+            self.near_stop_line_threshold2 = fine_tuning_parameters['near_stop_line_threshold2']
+
+        self.lower_white    = (0, 0, white_v_bound[0])
+        self.lower_white1   = (0, 0, white_v_bound[1])
+        self.lower_white2   = (0, 0, white_v_bound[2])
+
         self.upper_white    = (150, 50, 255)
 
         self.lower_red1     = (0, 100, 100)
@@ -39,13 +74,13 @@ class LaneDetector:
         num_red_pixels = np.count_nonzero(mask_red)
         if self.debug:
             print(f"Number of red pixels detected: {num_red_pixels}")
-        if num_red_pixels > 2000:
+        if num_red_pixels > self.near_stop_line_threshold:
             ys, xs = np.where(mask_red > 0)
             if len(ys) > 0:
                 avg_y = int(np.mean(ys))
                 if self.debug:
                     print(f"Average y of red points: {avg_y}")
-                if avg_y > 160:
+                if avg_y > self.near_stop_line_threshold2:
                     if self.publish_visualization:
                         return mask_red, True
                     else:
@@ -110,17 +145,17 @@ class LaneDetector:
 
         num_of_white = np.count_nonzero(mask_white)
 
-        if num_of_white > 7000:
+        if num_of_white > self.dynamic_brightness_threshold1:
             # this is too bright
  
             mask_white  = cv2.inRange(hsv_frame, self.lower_white1, self.upper_white)
             num_of_white = np.count_nonzero(mask_white)
 
-            if num_of_white > 4000:
+            if num_of_white > self.dynamic_brightness_threshold2:
 
                 mask_white  = cv2.inRange(hsv_frame, self.lower_white2, self.upper_white) # adaptive thresholding
                 num_of_white = np.count_nonzero(mask_white)
-        elif num_of_white > 4000:
+        elif num_of_white > self.dynamic_brightness_threshold3:
             check_again_on_white = True
 
 

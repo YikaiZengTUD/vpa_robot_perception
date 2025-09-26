@@ -1,2 +1,3 @@
 /test/test_img/
 *.pyc
+/scripts/toolbox/fine_tuning.py
