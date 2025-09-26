@@ -101,6 +101,7 @@ class LaneDetector:
         # there should always be a yellow line on the left side of the lane, 
         # but it can be next to a whitle line, which is the right boundary of the other lane
 
+        check_again_on_white = False
         left_yellow_boundary = None
         right_white_boundary = None
 
@@ -111,12 +112,16 @@ class LaneDetector:
 
         if num_of_white > 7000:
             # this is too bright
+ 
             mask_white  = cv2.inRange(hsv_frame, self.lower_white1, self.upper_white)
             num_of_white = np.count_nonzero(mask_white)
 
             if num_of_white > 4000:
+
                 mask_white  = cv2.inRange(hsv_frame, self.lower_white2, self.upper_white) # adaptive thresholding
                 num_of_white = np.count_nonzero(mask_white)
+        elif num_of_white > 4000:
+            check_again_on_white = True
 
 
 
@@ -151,13 +156,43 @@ class LaneDetector:
             # we search near where we found the yellow line
             row = mask_white[scan_height_white]
             white_indices = np.where(row > 0)[0]
+            
             if len(white_indices) > 0:
                 white_clusters = self._detect_clusters(white_indices)
                 if len(white_clusters) > 0:
                     # choose the leftest cluster that is at least 30 pixels away from the yellow line
                     if left_yellow_boundary is not None:
+                        if check_again_on_white:
+                            raw_hsv_line = hsv_frame[scan_height_white]
+                            # check of average v of each cluster is similar
+                            avg_list = []
+                            for cluster in white_clusters:
+                                # get avg_v of each cluster
+                                avg_v = np.mean([raw_hsv_line[i][2] for i in cluster])
+                                avg_list.append(avg_v)
+                                # remove darkest cluster if cluster is more than 2
+                            if len(avg_list) > 2:
+                                sorted_indices = sorted(range(len(avg_list)), key=lambda i: avg_list[i], reverse=True)
+                                white_clusters = [white_clusters[i] for i in sorted_indices[:2]]
+                                if self.debug:
+                                    print(f"Kept brightest 2 clusters with avg_v values: {[avg_list[i] for i in sorted_indices[:2]]}")
+
                         valid_white_clusters = [c for c in white_clusters if np.mean(c) - left_yellow_boundary > 40]
                     else:
+                        if check_again_on_white:
+                            raw_hsv_line = hsv_frame[scan_height_white]
+                            # check of average v of each cluster is similar
+                            avg_list = []
+                            for cluster in white_clusters:
+                                # get avg_v of each cluster
+                                avg_v = np.mean([raw_hsv_line[i][2] for i in cluster])
+                                avg_list.append(avg_v)
+                                # remove darkest cluster if cluster is more than 2
+                            if len(avg_list) > 2:
+                                sorted_indices = sorted(range(len(avg_list)), key=lambda i: avg_list[i], reverse=True)
+                                white_clusters = [white_clusters[i] for i in sorted_indices[:2]]
+                                if self.debug:
+                                    print(f"Kept brightest 2 clusters with avg_v values: {[avg_list[i] for i in sorted_indices[:2]]}")
                         valid_white_clusters = white_clusters
                     if len(valid_white_clusters) > 0:
                         right_white_cluster = valid_white_clusters[-1]
