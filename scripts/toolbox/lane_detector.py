@@ -74,7 +74,7 @@ class LaneDetector:
         num_red_pixels = np.count_nonzero(mask_red)
         if self.debug:
             print(f"Number of red pixels detected: {num_red_pixels}")
-        if num_red_pixels > self.near_stop_line_threshold:
+        if num_red_pixels > self.near_stop_line_threshold1:
             ys, xs = np.where(mask_red > 0)
             if len(ys) > 0:
                 avg_y = int(np.mean(ys))
