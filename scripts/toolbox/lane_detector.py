@@ -48,6 +48,10 @@ class LaneDetector:
         if 'near_stop_line_threshold2' in fine_tuning_parameters:
             self.near_stop_line_threshold2 = fine_tuning_parameters['near_stop_line_threshold2']
 
+        self.trusted_yellow_max_right = 180
+        if 'trusted_yellow_max_right' in fine_tuning_parameters:
+            self.trusted_yellow_max_right = fine_tuning_parameters['trusted_yellow_max_right']    
+
         self.lower_white    = (0, 0, white_v_bound[0])
         self.lower_white1   = (0, 0, white_v_bound[1])
         self.lower_white2   = (0, 0, white_v_bound[2])
@@ -175,7 +179,7 @@ class LaneDetector:
                     left_yellow_cluster = yellow_clusters[0]
                     for cluster in yellow_clusters:
                         if len(cluster) > len(left_yellow_cluster):
-                            if np.mean(cluster) < 180:
+                            if np.mean(cluster) < self.trusted_yellow_max_right:
                                 left_yellow_cluster = cluster
                     left_yellow_boundary = int(np.mean(left_yellow_cluster))
                     break
