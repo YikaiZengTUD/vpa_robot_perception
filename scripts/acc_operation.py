@@ -2,7 +2,7 @@
 
 import rospy
 from sensor_msgs.msg import Image, Range
-from std_msgs.msg import Float32
+from std_msgs.msg import Float32, Int32
 import cv2
 import numpy as np
 from cv_bridge import CvBridge
@@ -30,8 +30,8 @@ class ACCLeadNode:
         self.K = rospy.get_param("~K", 2.916)      # power-law K (fit from 2–3 samples)
         self.p = rospy.get_param("~p", 1.644)        # power-law exponent
         self.alpha = rospy.get_param("~alpha", 0.6) # Increase EMA smoothing factor for faster response
-        self.z_min = rospy.get_param("~z_min", 0.1)
-        self.z_max = rospy.get_param("~z_max", 1)
+        self.z_min = rospy.get_param("~z_min", 0.04)
+        self.z_max = rospy.get_param("~z_max", 1.5)
 
         self.hold_time = 1.2
         self.Z_ema = None
@@ -41,11 +41,20 @@ class ACCLeadNode:
         rospy.Subscriber("robot_cam/image_raw", Image, self.image_callback, queue_size=1)
         self.tof_range = 1.5
         self.tof_found_car = False
+        self.tof_status = 0 # For start
+        self.tof_status_sub = rospy.Subscriber("front_range_status", Int32, self.status_tof_callback, queue_size=1)
+
         self.tof_sub = rospy.Subscriber("front_range", Range, self.tof_callback, queue_size=1)
         rospy.loginfo("%s: [ACC] ACCLeadNode initialized.", self.robot_name)
 
+    def status_tof_callback(self, msg: Int32):
+        self.tof_status = msg.data
+
     def tof_callback(self, msg: Range):
-        self.tof_range = msg.range
+        if self.tof_status == 9:
+            self.tof_range = np.clip(msg.range, self.z_min, self.z_max)
+        else:
+            self.tof_range = self.z_max + 0.1  # invalid reading
 
     def _estimate_distance(self, avg_radius_px: float) -> float:
         # power-law distance: Z = (K / r)^ (1/p), clipped and EMA-smoothed
