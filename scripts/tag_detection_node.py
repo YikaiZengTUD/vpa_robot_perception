@@ -60,6 +60,9 @@ class AprilTagDetectorNode:
                     is_success = self.image_callback(image_msg)
                     rospy.sleep(0.1)
                     time_out_count -= 1
+                if not is_success:
+                    rospy.logwarn("%s: [TAG DETECTOR INFO] Failed to detect tag after multiple attempts.", self.robot_name)
+                    self.near_stop_line_last = False  # allow retry next time, assume we just not near enough
             except rospy.ROSException as e:
                 rospy.logerr("%s: Failed to receive image: %s", self.robot_name, str(e))
         else:
