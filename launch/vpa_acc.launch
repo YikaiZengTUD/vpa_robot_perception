@@ -1,4 +1,5 @@
 <launch>
     <node pkg="vpa_robot_perception" type="acc_operation.py" name="acc_operation" output="screen">
     </node>
+    <include file="$(find vpa_robot_interface)/launch/vpa_tof.launch"/>
 </launch>

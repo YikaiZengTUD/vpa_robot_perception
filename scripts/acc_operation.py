@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import rospy
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, Range
 from std_msgs.msg import Float32
 import cv2
 import numpy as np
@@ -39,8 +39,13 @@ class ACCLeadNode:
         self.lead_distance_pub = rospy.Publisher("perception/lead_car_distance", Float32, queue_size=1)
 
         rospy.Subscriber("robot_cam/image_raw", Image, self.image_callback, queue_size=1)
-
+        self.tof_range = 1.5
+        self.tof_found_car = False
+        self.tof_sub = rospy.Subscriber("front_range", Range, self.tof_callback, queue_size=1)
         rospy.loginfo("%s: [ACC] ACCLeadNode initialized.", self.robot_name)
+
+    def tof_callback(self, msg: Range):
+        self.tof_range = msg.range
 
     def _estimate_distance(self, avg_radius_px: float) -> float:
         # power-law distance: Z = (K / r)^ (1/p), clipped and EMA-smoothed
@@ -59,6 +64,17 @@ class ACCLeadNode:
             rospy.logerr("Failed to convert image: %s", str(e))
             return
         
+        
+
+        if self.tof_found_car:
+            # we must need tof to make sure the car is gone, as the image check may sometimes fail
+            if self.tof_range > 1.3:
+                self.tof_found_car = False
+
+            distance = self.tof_range # trust tof when we have a valid reading
+            self.lead_distance_pub.publish(Float32(data=distance))
+            return
+
         ok, det = self.detector.detect(cv_image)
 
         if ok:
@@ -70,7 +86,14 @@ class ACCLeadNode:
             if center_x > self.front_region[0] and center_x < self.front_region[1]:
                 # Estimate distance based on radii
                 avg_radius = (r1 + r2) / 2.0
-                distance = self._estimate_distance(avg_radius)
+                # first try to use ToF if available
+                if self.tof_range < 1.5:
+                    # we may need to check
+                    distance = float(np.clip(self.tof_range, self.z_min, self.z_max))
+                    self.tof_found_car = True
+                else:
+                    # somehow the front car is not in FOV of the tof sensor
+                    distance = self._estimate_distance(avg_radius)
                 # print(f"Estimated distance: {distance:.2f} m, avg_radius: {avg_radius:.2f} px")
                 self.last_valid_time = msg.header.stamp.to_sec()
             else:
