@@ -73,60 +73,77 @@ class ACCLeadNode:
             rospy.logerr("Failed to convert image: %s", str(e))
             return
         
-        
-
-        if self.tof_found_car:
-            # we must need tof to make sure the car is gone, as the image check may sometimes fail
-            if self.tof_range > 1.3:
-                self.tof_found_car = False
-
-            distance = self.tof_range # trust tof when we have a valid reading
-            self.lead_distance_pub.publish(Float32(data=distance))
-            return
-
-        ok, det = self.detector.detect(cv_image)
-
-        if ok:
-            r1,r2  = det['radii']
-            center1_xy, center2_xy = det['centers']
-            center_x = (center1_xy[0] + center2_xy[0]) / 2.0
-            # print(f"Detected radii: r1={r1:.2f}, r2={r2:.2f}, center_x={center_x:.2f}")
-            # print(f"Front region: {self.front_region}")
-            if center_x > self.front_region[0] and center_x < self.front_region[1]:
-                # Estimate distance based on radii
-                avg_radius = (r1 + r2) / 2.0
-                # first try to use ToF if available
-                if self.tof_range < 1.5:
-                    # we may need to check
-                    distance = float(np.clip(self.tof_range, self.z_min, self.z_max))
-                    self.tof_found_car = True
-                else:
-                    # somehow the front car is not in FOV of the tof sensor
-                    distance = self._estimate_distance(avg_radius)
-                # print(f"Estimated distance: {distance:.2f} m, avg_radius: {avg_radius:.2f} px")
+        if self.tof_status == 9 and self.tof_range < 1:
+            # the tof detect something
+            ok, _ = self.detector.detect(cv_image)
+            if ok: # we check if this is a car
+                self.tof_found_car = True
+                distance = float(np.clip(self.tof_range, self.z_min, self.z_max))
+                self.lead_distance_pub.publish(Float32(data=distance))
                 self.last_valid_time = msg.header.stamp.to_sec()
-            else:
-                # out of front region
-                if self.last_valid_time is None:
-                    distance = self.z_max + 0.1  # No detection, set to max + margin
-                elif msg.header.stamp.to_sec() - self.last_valid_time > self.hold_time:
-                    distance = self.z_max + 0.1
-                    self.last_valid_time = None
-                else:
-                    distance = self.Z_ema if self.Z_ema is not None else self.z_max + 0.1
-        else:
-            if self.last_valid_time is None:
-                # no detection yet
-                distance = self.z_max + 0.1  # No detection, set to max + margin
-            elif msg.header.stamp.to_sec() - self.last_valid_time > self.hold_time:
-                # lost detection for too long
+                return
+            else: # not a car, ignore tof
+                self.tof_found_car = False
                 distance = self.z_max + 0.1
-                self.last_valid_time = None
-            else:
-                # hold last valid distance
-                distance = self.Z_ema if self.Z_ema is not None else self.z_max + 0.1
+                self.lead_distance_pub.publish(Float32(data=distance))
+                return
+            
+        # not using camera for distace estimation
 
-        self.lead_distance_pub.publish(Float32(data=distance))
+        # if we have found a car using tof before, we will keep trusting tof until it goes away
+
+        # if self.tof_found_car:
+        #     # we must need tof to make sure the car is gone, as the image check may sometimes fail
+        #     if self.tof_range > 1.3:
+        #         self.tof_found_car = False
+
+        #     distance = self.tof_range # trust tof when we have a valid reading
+        #     self.lead_distance_pub.publish(Float32(data=distance))
+        #     return
+
+        # ok, det = self.detector.detect(cv_image)
+
+        # if ok:
+        #     r1,r2  = det['radii']
+        #     center1_xy, center2_xy = det['centers']
+        #     center_x = (center1_xy[0] + center2_xy[0]) / 2.0
+        #     # print(f"Detected radii: r1={r1:.2f}, r2={r2:.2f}, center_x={center_x:.2f}")
+        #     # print(f"Front region: {self.front_region}")
+        #     if center_x > self.front_region[0] and center_x < self.front_region[1]:
+        #         # Estimate distance based on radii
+        #         avg_radius = (r1 + r2) / 2.0
+        #         # first try to use ToF if available
+        #         if self.tof_range < 1.5:
+        #             # we may need to check
+        #             distance = float(np.clip(self.tof_range, self.z_min, self.z_max))
+        #             self.tof_found_car = True
+        #         else:
+        #             # somehow the front car is not in FOV of the tof sensor
+        #             distance = self._estimate_distance(avg_radius)
+        #         # print(f"Estimated distance: {distance:.2f} m, avg_radius: {avg_radius:.2f} px")
+        #         self.last_valid_time = msg.header.stamp.to_sec()
+        #     else:
+        #         # out of front region
+        #         if self.last_valid_time is None:
+        #             distance = self.z_max + 0.1  # No detection, set to max + margin
+        #         elif msg.header.stamp.to_sec() - self.last_valid_time > self.hold_time:
+        #             distance = self.z_max + 0.1
+        #             self.last_valid_time = None
+        #         else:
+        #             distance = self.Z_ema if self.Z_ema is not None else self.z_max + 0.1
+        # else:
+        #     if self.last_valid_time is None:
+        #         # no detection yet
+        #         distance = self.z_max + 0.1  # No detection, set to max + margin
+        #     elif msg.header.stamp.to_sec() - self.last_valid_time > self.hold_time:
+        #         # lost detection for too long
+        #         distance = self.z_max + 0.1
+        #         self.last_valid_time = None
+        #     else:
+        #         # hold last valid distance
+        #         distance = self.Z_ema if self.Z_ema is not None else self.z_max + 0.1
+
+        # self.lead_distance_pub.publish(Float32(data=distance))
 
 
 if __name__ == "__main__":
