@@ -58,7 +58,7 @@ class FrontCarDetector:
         H, W = masked_image.shape[:2]
         cnts, hier = cv2.findContours(masked_image, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
 
-        cnts = [c for c in cnts if cv2.contourArea(c) >= 50]
+        # cnts = [c for c in cnts if cv2.contourArea(c) >= 50]
 
         if hier is None or len(cnts) == 0: 
             return False, {}
@@ -72,6 +72,8 @@ class FrontCarDetector:
             if hier[i][3] != -1:
                 continue
             # collect child contours (holes)
+            if cv2.contourArea(c) < 150: # ignore small parents
+                continue
             child = hier[i][2]
             holes = []
             while child != -1:
@@ -159,7 +161,7 @@ def draw_detection(bgr, det):
 
 if __name__ == "__main__":
 
-    IMAGE_PATH = "test/test_img/acc/image3_40.png"
+    IMAGE_PATH = "test/test_img/acc/image1_70.png"
     frame = cv2.imread(IMAGE_PATH)
     if frame is None:
         raise FileNotFoundError(f"Cannot load image: {IMAGE_PATH}")
