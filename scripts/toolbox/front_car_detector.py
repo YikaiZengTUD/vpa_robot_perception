@@ -85,6 +85,9 @@ class FrontCarDetector:
 
             if len(holes) < 2: 
                 continue
+            if len(holes) > 5:
+                # questionable detections
+                continue
             # take two largest by area
             holes.sort(key=lambda t: t[3], reverse=True)
             (x1,y1,r1,a1,c1), (x2,y2,r2,a2,c2) = holes[:2]
@@ -179,6 +182,7 @@ if __name__ == "__main__":
         vis = draw_detection(frame, det)
         show_bgr(vis, title="Detection")   
         rad1, rad2 = det["radii"]
+        detector._test_debug(frame)
         print(f"Detected car-like pattern with radii: {rad1:.1f}, {rad2:.1f}")
     else:
         print("No car-like pattern detected.")
