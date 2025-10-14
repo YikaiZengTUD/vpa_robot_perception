@@ -5,9 +5,8 @@ class FrontCarDetector:
 
     def __init__(self):
         
-        self.car_pattern_hsv_lower1 = (50, 80, 25)   # allow dark-ish green
-        self.car_pattern_hsv_lower2 = (50, 80, 10)
-        self.car_pattern_hsv_lower3 = (50, 80, 40) 
+        self.car_pattern_hsv_lower1 = (50, 90, 40)   # allow dark-ish green
+        self.car_pattern_hsv_lower2 = (50, 90, 25)
         self.car_pattern_hsv_upper = (85, 255, 255) # cover lime → teal-ish green
 
         self.MIN_DOT_AREA      = 25          # px^2
@@ -18,8 +17,6 @@ class FrontCarDetector:
         hsv  = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
         if case == 1:
             mask = cv2.inRange(hsv, self.car_pattern_hsv_lower1, self.car_pattern_hsv_upper)
-        elif case == 3:
-            mask = cv2.inRange(hsv, self.car_pattern_hsv_lower3, self.car_pattern_hsv_upper)
         else:
             mask = cv2.inRange(hsv, self.car_pattern_hsv_lower2, self.car_pattern_hsv_upper)
         return cv2.medianBlur(mask, 5)       # keep holes; don't close/dilate
@@ -37,9 +34,12 @@ class FrontCarDetector:
             mask_green = self._green_mask(2,image_opencv)
             ok2,det = self.find_car_patterns(mask_green)
             if not ok2:
-                ok3,det = self.find_car_patterns(self._green_mask(3,image_opencv))
-                if not ok3:
-                    return False, None
+                return False, None
+            else:
+                return True, det
+            #     ok3,det = self.find_car_patterns(self._green_mask(3,image_opencv))
+            #     if not ok3:
+            #         return False, None
         return True, det
     
     def _center_and_vertical_diam(self, cnt):
@@ -57,6 +57,8 @@ class FrontCarDetector:
     def find_car_patterns(self,masked_image):
         H, W = masked_image.shape[:2]
         cnts, hier = cv2.findContours(masked_image, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+
+        cnts = [c for c in cnts if cv2.contourArea(c) >= 50]
 
         if hier is None or len(cnts) == 0: 
             return False, {}
@@ -157,7 +159,7 @@ def draw_detection(bgr, det):
 
 if __name__ == "__main__":
 
-    IMAGE_PATH = "test/test_img/acc/image51.png"
+    IMAGE_PATH = "test/test_img/acc/image3_40.png"
     frame = cv2.imread(IMAGE_PATH)
     if frame is None:
         raise FileNotFoundError(f"Cannot load image: {IMAGE_PATH}")
