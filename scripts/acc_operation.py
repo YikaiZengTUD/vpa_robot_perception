@@ -87,6 +87,14 @@ class ACCLeadNode:
                 distance = self.z_max + 0.1
                 self.lead_distance_pub.publish(Float32(data=distance))
                 return
+        else:
+            # no valid tof reading
+            # we assume no car detected by tof
+            self.tof_found_car = False
+            distance = self.z_max + 0.1
+            self.lead_distance_pub.publish(Float32(data=distance))
+
+
             
         # not using camera for distace estimation
 
