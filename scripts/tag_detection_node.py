@@ -88,6 +88,9 @@ class AprilTagDetectorNode:
         det = detections[0] if detections else None
         if det is not None and 'pose_R' in det and 'pose_t' in det and det['pose_R'] is not None and det['pose_t'] is not None:
             self.tag_id_pub.publish(det['id'])
+            if det['id'] == 331:
+                # this is the tag on the stop line we want
+                return True
 
             T_base_to_camera = self.base_to_camera_default
 
