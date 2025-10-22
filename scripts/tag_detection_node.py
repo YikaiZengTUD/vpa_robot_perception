@@ -41,6 +41,7 @@ class AprilTagDetectorNode:
         self.near_stop_line_last = False
         self.pose_pub = rospy.Publisher("start_pose", Pose2D, queue_size=1)
         self.image_msg = None
+        self.failed_attempts_pub = rospy.Publisher("perception/tag_detection_failed", Bool, queue_size=1)
         rospy.loginfo("%s: AprilTagDetectorNode started. Debug=%s Pose=%s", self.robot_name, self.debug, self.use_pose)
 
 
@@ -62,7 +63,8 @@ class AprilTagDetectorNode:
                     time_out_count -= 1
                 if not is_success:
                     rospy.logwarn("%s: [TAG DETECTOR INFO] Failed to detect tag after multiple attempts.", self.robot_name)
-                    self.near_stop_line_last = False  # allow retry next time, assume we just not near enough
+                    self.failed_attempts_pub.publish(Bool(data=True))
+                    # in this way we can notify other nodes that tag detection failed
             except rospy.ROSException as e:
                 rospy.logerr("%s: Failed to receive image: %s", self.robot_name, str(e))
         else:
