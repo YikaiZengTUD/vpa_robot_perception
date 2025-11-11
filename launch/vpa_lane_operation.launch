@@ -7,7 +7,7 @@
         <param name="publish_result" value="$(arg publish_result)"/>
         <param name="debug" value="$(arg lane_debug)"/>
     </node>
-    <group if="$(arg disable_tag_detection)">
+    <group unless="$(arg disable_tag_detection)">
         <node pkg="vpa_robot_perception" type="tag_detection_node.py" name="tag_detection_node" output="screen" required="true">
             <param name="publish_result" value="$(arg publish_result)"/>
             <param name="debug" value="$(arg tag_debug)"/>
