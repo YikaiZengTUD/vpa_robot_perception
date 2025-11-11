@@ -2,12 +2,15 @@
     <arg name="publish_result" default="false"/>
     <arg name="lane_debug" default="false"/>
     <arg name="tag_debug" default="false"/>
+    <arg name="disable_tag_detection" default="false"/>
     <node pkg="vpa_robot_perception" type="lane_detection_node.py" name="lane_detection_node" output="screen" required="true">
         <param name="publish_result" value="$(arg publish_result)"/>
         <param name="debug" value="$(arg lane_debug)"/>
     </node>
-    <node pkg="vpa_robot_perception" type="tag_detection_node.py" name="tag_detection_node" output="screen" required="true">
-        <param name="publish_result" value="$(arg publish_result)"/>
-        <param name="debug" value="$(arg tag_debug)"/>
-    </node>    
+    <group if="$(arg disable_tag_detection)">
+        <node pkg="vpa_robot_perception" type="tag_detection_node.py" name="tag_detection_node" output="screen" required="true">
+            <param name="publish_result" value="$(arg publish_result)"/>
+            <param name="debug" value="$(arg tag_debug)"/>
+        </node>
+    </group>
 </launch>

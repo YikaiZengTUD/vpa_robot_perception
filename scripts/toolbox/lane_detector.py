@@ -288,7 +288,7 @@ class LaneDetector:
         plt.show()
 
 if __name__ == "__main__":
-    IMAGE_PATH = "test/test_img/image46.png"
+    IMAGE_PATH = "test/test_img/image55.png"
     frame = cv2.imread(IMAGE_PATH)
     if frame is None:
         raise FileNotFoundError(f"Cannot load image: {IMAGE_PATH}")
