@@ -52,7 +52,7 @@ class ACCLeadNode:
 
     def tof_callback(self, msg: Range):
         if self.tof_status == 9:
-            self.tof_range = np.clip(msg.range, self.z_min, self.z_max)
+            self.tof_range = np.clip(msg.range- 0.04, self.z_min, self.z_max)  # small seeting because of mounting offset
         else:
             self.tof_range = self.z_max + 0.1  # invalid reading
 
