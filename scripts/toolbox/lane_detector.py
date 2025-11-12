@@ -105,7 +105,10 @@ class LaneDetector:
 
         # step 2: convert to HSV 
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        # print(hsv[120,90])
+        # debug_point = (130, 240)
+        # print(hsv[debug_point[0], debug_point[1]])
+        # # draw a dot on this selected point for debugging
+        # cv2.circle(frame, (debug_point[1], debug_point[0]), 4, (0, 255, 0), -1)
 
         if self.publish_visualization:
             self.mask_red,self.near_stop_line = self.detect_stop_line(hsv)
@@ -147,16 +150,13 @@ class LaneDetector:
         mask_yellow = cv2.inRange(hsv_frame, self.lower_yellow, self.upper_yellow)
         mask_white  = cv2.inRange(hsv_frame, self.lower_white, self.upper_white)
 
-        num_of_white = np.count_nonzero(mask_white)
+        num_of_white = np.count_nonzero(mask_white[:, mask_white.shape[1]//2:])
 
         if num_of_white > self.dynamic_brightness_threshold1:
             # this is too bright
- 
             mask_white  = cv2.inRange(hsv_frame, self.lower_white1, self.upper_white)
-            num_of_white = np.count_nonzero(mask_white)
-
+            num_of_white = np.count_nonzero(mask_white[:, mask_white.shape[1]//2:])
             if num_of_white > self.dynamic_brightness_threshold2:
-
                 mask_white  = cv2.inRange(hsv_frame, self.lower_white2, self.upper_white) # adaptive thresholding
                 num_of_white = np.count_nonzero(mask_white)
         elif num_of_white > self.dynamic_brightness_threshold3:
@@ -288,7 +288,7 @@ class LaneDetector:
         plt.show()
 
 if __name__ == "__main__":
-    IMAGE_PATH = "test/test_img/image55.png"
+    IMAGE_PATH = "test/test_img/image101.png"
     frame = cv2.imread(IMAGE_PATH)
     if frame is None:
         raise FileNotFoundError(f"Cannot load image: {IMAGE_PATH}")
