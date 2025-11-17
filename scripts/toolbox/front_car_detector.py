@@ -7,6 +7,7 @@ class FrontCarDetector:
         
         self.car_pattern_hsv_lower1 = (50, 90, 40)   # allow dark-ish green
         self.car_pattern_hsv_lower2 = (50, 90, 25)
+        self.car_pattern_hsv_lower3 = (50, 90, 15) # cover lime → teal-ish green
         self.car_pattern_hsv_upper = (85, 255, 255) # cover lime → teal-ish green
 
         self.MIN_DOT_AREA      = 25          # px^2
@@ -17,8 +18,10 @@ class FrontCarDetector:
         hsv  = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
         if case == 1:
             mask = cv2.inRange(hsv, self.car_pattern_hsv_lower1, self.car_pattern_hsv_upper)
-        else:
+        elif case == 2:
             mask = cv2.inRange(hsv, self.car_pattern_hsv_lower2, self.car_pattern_hsv_upper)
+        elif case == 3:
+            mask = cv2.inRange(hsv, self.car_pattern_hsv_lower3, self.car_pattern_hsv_upper)
         return cv2.medianBlur(mask, 5)       # keep holes; don't close/dilate
 
     def detect(self, image_opencv):
@@ -36,10 +39,10 @@ class FrontCarDetector:
             if not ok2:
                 return False, None
             else:
-                return True, det
-            #     ok3,det = self.find_car_patterns(self._green_mask(3,image_opencv))
-            #     if not ok3:
-            #         return False, None
+                # return True, det
+                ok3,det = self.find_car_patterns(self._green_mask(3,image_opencv))
+                if not ok3:
+                    return False, None
         return True, det
     
     def _center_and_vertical_diam(self, cnt):
@@ -161,7 +164,7 @@ def draw_detection(bgr, det):
 
 if __name__ == "__main__":
 
-    IMAGE_PATH = "test/test_img/acc/image1_70.png"
+    IMAGE_PATH = "test/test_img/acc/image107.png"
     frame = cv2.imread(IMAGE_PATH)
     if frame is None:
         raise FileNotFoundError(f"Cannot load image: {IMAGE_PATH}")
