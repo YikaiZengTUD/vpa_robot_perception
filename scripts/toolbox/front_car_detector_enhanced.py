@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from tag_detector import AprilTagWrapper
+from toolbox.tag_detector import AprilTagWrapper
 
 
 class FrontCarDetectorEnhanced:
