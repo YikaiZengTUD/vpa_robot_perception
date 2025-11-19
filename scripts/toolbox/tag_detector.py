@@ -41,7 +41,7 @@ class AprilTagWrapper:
             raise ValueError("Camera parameters must be a list of four values: [fx, fy, cx, cy]")
         self.camera_params = camera_params
     
-    def detect(self, frame_bgr):
+    def detect(self, frame_bgr, valid_tag_lowbound=300, valid_tag_upbound=400):
         gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
         # gray = cv2.equalizeHist(gray)
 
@@ -60,7 +60,7 @@ class AprilTagWrapper:
 
         
         for tag in results:
-            if tag.tag_id < 300:
+            if tag.tag_id > valid_tag_upbound or tag.tag_id < valid_tag_lowbound:
                 continue  # Skip tags with id < 300, MiniCCAM lab settings
             det = {
             'id': tag.tag_id,
@@ -160,7 +160,7 @@ def test_on_image(image_path):
 
 if __name__ == "__main__":
 
-    test_tag = test_on_image("test/test_img/image21.png")
+    test_tag = test_on_image("test/test_img/tagacc/image02.png")
     if test_tag is None:
         exit(0)
 
