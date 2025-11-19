@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 from tag_detector import AprilTagWrapper
-import matplotlib.pyplot as plt
+
 
 class FrontCarDetectorEnhanced:
 
@@ -22,10 +22,16 @@ class FrontCarDetectorEnhanced:
         black_threshold = 30
         mask = cv2.inRange(frame, (0, 0, 0), (black_threshold, black_threshold, black_threshold))
         final_hsv[mask > 0] = 0  # Set these pixels to black in HSV
+
+        # try make everything else not in this mask white
+        # no thershold use mask
+        final_hsv[mask == 0] = [0, 0, 255]  # Set these pixels to white in HSV
+
         bright_frame = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
         return bright_frame
     
     def _show_debug_frame(self, frame, window_name="Debug Frame"):
+        import matplotlib.pyplot as plt
         plt.imshow(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
         plt.title(window_name)
         plt.axis('off')  # Hide axes
@@ -33,7 +39,7 @@ class FrontCarDetectorEnhanced:
 
     def detect_front_car(self, frame_bgr):
         bright_frame = self.increase_brightness(frame_bgr, value=50)
-        # self._show_debug_frame(bright_frame, window_name="Brightened Frame")
+        self._show_debug_frame(bright_frame, window_name="Brightened Frame")
         detections = self.apriltag_detector.detect(bright_frame, valid_tag_lowbound=0, valid_tag_upbound=100)
         front_car_tags = []
         if detections is None or len(detections) == 0:
@@ -41,8 +47,9 @@ class FrontCarDetectorEnhanced:
             return []
         else:
             for det in detections:
-                if det is None:
+                if det is None or len(det) == 0:
                     continue
+                
                 tag_id = det[0]['id']
                 if 0 <= tag_id < 100:
                     front_car_tags.append(tag_id)
@@ -74,7 +81,7 @@ def test_on_image(image_path):
     return None
 
 if __name__ == "__main__":
-    image_path = "test/test_img/tagacc/image01.png"
+    image_path = "test/test_img/tagacc/image03.png"
     tag_detection = test_on_image(image_path)
 
     if tag_detection:
