@@ -11,7 +11,7 @@ class FrontCarDetectorEnhanced:
 
     def __init__(self,debug=False):
         
-        self.apriltag_detector = AprilTagWrapper(tag_family='tag36h11', debug=False, tag_size=0.08)
+        self.apriltag_detector = AprilTagWrapper(tag_family='tag36h11', debug=False, tag_size=0.075)
         # Camera parameters: fx, fy, cx, cy
         
     def increase_brightness(self, frame, value=30):
@@ -40,7 +40,7 @@ class FrontCarDetectorEnhanced:
         bright_frame = self.increase_brightness(frame_bgr, value=50)
         if platform.system() == 'Windows':
             self._show_debug_frame(bright_frame, window_name="Brightened Frame")
-        detections = self.apriltag_detector.detect(bright_frame, valid_tag_lowbound=0, valid_tag_upbound=100)
+        detections = self.apriltag_detector.detect(bright_frame, valid_tag_lowbound=100, valid_tag_upbound=200)
         front_car_tags = []
         if detections is None or len(detections) == 0:
             # print("No tags detected")
@@ -51,7 +51,7 @@ class FrontCarDetectorEnhanced:
                     continue
                 
                 tag_id = det[0]['id']
-                if 0 <= tag_id < 100:
+                if 100 <= tag_id < 200:
                     front_car_tags.append(tag_id)
             return front_car_tags
 
