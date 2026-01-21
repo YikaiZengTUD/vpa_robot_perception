@@ -28,9 +28,9 @@ BIAS_DIM    = 10
 BIAS_DARKER = 8
 
 # Hysteresis thresholds based on your data
-S_BAD  = 50.0   # enter "whitening" mitigation
+S_BAD  = 65.0   # enter "whitening" mitigation
 S_GOOD = 65.0   # exit back upward
-
+S_GO_UP = 150.0 # need stronger evidence to go back up
 # Frame persistence
 K_DOWN = 3       # consecutive frames to step down
 M_UP   = 10      # consecutive frames to step up
@@ -97,31 +97,32 @@ class BiasController:
 
     def _set_bias(self, new_bias: int):
         if new_bias == self.bias:
-            return
+            return False  # No change made
+
         # Clamp to [0,24] just in case
         new_bias = max(0, min(24, new_bias))
         set_ctrl(f"auto_exposure_bias={new_bias}")
         self.bias = new_bias
         self.last_set_time = time.time()
         rospy.loginfo(f"[AE] Set auto_exposure_bias={new_bias}")
+        return True  # Change made
 
     def update(self, bright_frac: float, s_mean_hiV: float):
         now = time.time()
         if now - self.last_set_time < self.cooldown_s:
-            return  # cooldown
+            return False  # cooldown, no change
 
         # Gate: if no lane evidence, force neutral and reset counters
         if bright_frac < B_MIN:
             self.down_count = 0
             self.up_count = 0
-            self._set_bias(BIAS_NORMAL)
-            return
+            return self._set_bias(BIAS_NORMAL)
 
         # Decide down / up with hysteresis
         if s_mean_hiV < S_BAD:
             self.down_count += 1
             self.up_count = 0
-        elif s_mean_hiV > S_GOOD:
+        elif s_mean_hiV > S_GO_UP:
             self.up_count += 1
             self.down_count = 0
         else:
@@ -132,24 +133,26 @@ class BiasController:
         # Step down
         if self.down_count >= K_DOWN:
             if self.bias == BIAS_NORMAL:
-                self._set_bias(BIAS_DIM)
+                self.down_count = 0
+                return self._set_bias(BIAS_DIM)
             elif self.bias == BIAS_DIM:
-                self._set_bias(BIAS_DARKER)
-            self.down_count = 0
+                self.down_count = 0
+                return self._set_bias(BIAS_DARKER)
 
         # Step up
         if self.up_count >= M_UP:
             if self.bias == BIAS_DARKER:
-                self._set_bias(BIAS_DIM)
+                self.up_count = 0
+                return self._set_bias(BIAS_DIM)
             elif self.bias == BIAS_DIM:
-                self._set_bias(BIAS_NORMAL)
-            self.up_count = 0
+                self.up_count = 0
+                return self._set_bias(BIAS_NORMAL)
+
+        return False  # No change made
 
 def main():
     # Ensure AE is on, start neutral
     set_ctrl("auto_exposure=0,auto_exposure_bias=12")
-    # Try metering mode tweak if you want:
-    # set_ctrl("exposure_metering_mode=1")
 
     rospy.init_node("adaptive_ae_bias", anonymous=False)
 
@@ -171,10 +174,11 @@ def main():
             return
 
         bright_frac, s_mean, white_like = compute_metrics(bgr)
-        rospy.loginfo_throttle(
-            1.0, f"[AE] bright_frac={bright_frac:.3f} s_mean_hiV={s_mean:.1f} white_like={white_like*100:.1f}% bias={ctrl.bias}"
-        )
-        ctrl.update(bright_frac, s_mean)
+        adjustment_made = ctrl.update(bright_frac, s_mean)
+        if adjustment_made:
+            rospy.loginfo(
+                f"[AE] Adjustment made: bright_frac={bright_frac:.3f}, s_mean_hiV={s_mean:.1f}, white_like={white_like*100:.1f}%, new_bias={ctrl.bias}"
+            )
 
     sub = rospy.Subscriber("robot_cam/image_raw", Image, cb, queue_size=1)
 
