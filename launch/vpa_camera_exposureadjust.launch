@@ -1,3 +1,4 @@
 <launch>
     <node pkg="vpa_robot_perception" type="exposure_adjust_cam.py" name="vpa_camera_exposureadjust" output="screen"/>
+    <include file="$(find vpa_robot_interface)/launch/vpa_camera.launch"/>
 </launch>
