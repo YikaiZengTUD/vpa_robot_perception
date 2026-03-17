@@ -26,6 +26,7 @@ class FrontCarDetectorEnhanced:
         black_threshold_1 = threshold   
         mask = cv2.inRange(frame, (0, 0, 0), (black_threshold_1, black_threshold_1, black_threshold_1))
         final_hsv[mask > 0] = 0  # Set these pixels to black in HSV
+
         bright_frame = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
         return bright_frame
     
@@ -40,26 +41,33 @@ class FrontCarDetectorEnhanced:
         bright_frame = self.increase_brightness(frame_bgr, value=50)
         if platform.system() == 'Windows':
             self._show_debug_frame(bright_frame, window_name="Brightened Frame")
+        
+        # First attempt to detect tags
         detections = self.apriltag_detector.detect(bright_frame, valid_tag_lowbound=100, valid_tag_upbound=200)
         front_car_tags = []
-        if detections is None or len(detections) == 0:
-            # print("No tags detected")
-            # try again with another threshold
-            bright_frame = self.increase_brightness(frame_bgr, value=50, threshold=90)
+        # sometimes deteions being ([],None)
+        # Check if detections are valid
+        if not detections or len(detections) == 0 or detections[1] is None:
+            # Try again with a higher threshold
+            bright_frame = self.increase_brightness(frame_bgr, value=50, threshold=75)
             if platform.system() == 'Windows':
                 self._show_debug_frame(bright_frame, window_name="Brightened Frame with Higher Threshold")
             detections = self.apriltag_detector.detect(bright_frame, valid_tag_lowbound=100, valid_tag_upbound=200)
-            if detections is None or len(detections) == 0:
+
+            # If still no detections, return an empty list
+            if not detections or len(detections) == 0:
                 return []
-        else:
-            for det in detections:
-                if det is None or len(det) == 0:
-                    continue
-                
-                tag_id = det[0]['id']
-                if 100 <= tag_id < 200:
-                    front_car_tags.append(tag_id)
-            return front_car_tags
+
+        # Process detections
+        for det in detections:
+            if det is None or len(det) == 0:
+                continue
+            
+            tag_id = det[0]['id']
+            if 100 <= tag_id < 200:
+                front_car_tags.append(tag_id)
+
+        return front_car_tags if front_car_tags else []
 
 # === Debug function for static image testing ===
 def test_on_image(image_path):
@@ -69,8 +77,11 @@ def test_on_image(image_path):
 
     detector = FrontCarDetectorEnhanced()
     front_tags = detector.detect_front_car(image)
-    for tag_id in front_tags:
-        print(f"Detected front car tag ID: {tag_id}")
+    if front_tags is None:
+        print("No front car tags detected.")
+    else:
+        for tag_id in front_tags:
+            print(f"Detected front car tag ID: {tag_id}")
     print("Debugging completed.")
 
 
@@ -87,7 +98,7 @@ def test_on_image(image_path):
     return None
 
 if __name__ == "__main__":
-    image_path = "test/test_img/tagacc/image114.png"
+    image_path = "test/test_img/tagacc/image116.png"
     tag_detection = test_on_image(image_path)
 
     if tag_detection:
